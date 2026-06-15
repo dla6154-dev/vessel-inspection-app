@@ -81,9 +81,9 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13
 .table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg)}
 .table-scroll{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 320px);border-radius:var(--radius-lg)}
 
-table.main-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed;min-width:960px}
+table.main-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:auto;min-width:960px}
 col.c-day{width:42px}
-col.c-ship{width:86px}
+col.c-ship{min-width:86px}
 col.c-tot{width:66px}
 col.c-bog{width:66px}
 col.c-ins{width:80px}
@@ -355,26 +355,9 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:#f
       <button class="btn btn-dl" onclick="downloadScheduleExcel()">&#128229; 엑셀 다운로드</button>
     </div>
     <div class="sch-table-wrap">
-      <table class="sch-tbl">
-        <colgroup>
-          <col style="width:46px">
-          <col style="width:44px">
-          <col style="width:170px">
-          <col style="width:170px">
-          <col>
-        </colgroup>
-        <thead>
-          <tr>
-            <th rowspan="2">날짜</th>
-            <th rowspan="2">요일</th>
-            <th colspan="2" style="border-bottom:1px solid var(--border2)" id="schTblCenterLabel">진도</th>
-            <th rowspan="2">휴무</th>
-          </tr>
-          <tr>
-            <th>A (05:00이전)</th>
-            <th>B (10:30이전)</th>
-          </tr>
-        </thead>
+      <table class="sch-tbl" id="schTable">
+        <colgroup id="schColgroup"></colgroup>
+        <thead id="schThead"></thead>
         <tbody id="schTbody"></tbody>
       </table>
     </div>
@@ -1076,7 +1059,6 @@ async function initSync(){
   }
   document.getElementById('topbarCenter').textContent = centerLabel();
   document.getElementById('pageMeta').textContent = '2026년 · ' + centerLabel() + '사무소';
-  document.getElementById('schTblCenterLabel').textContent = centerLabel();
 })();
 initSync();
 
@@ -1087,10 +1069,42 @@ var schMonth = curMonth;
 
 function schStKey(m){ return centerPrefix()+'vis_sch_2026_'+m; }
 
+/* 센터별 근무 슬롯 정의 */
+var SCH_SLOTS = {
+  jindo: [
+    {key:'a', label:'A (05:00이전)', leave:false},
+    {key:'b', label:'B (10:30이전)', leave:true}
+  ],
+  namgang: [
+    {key:'a', label:'A (05:30이전)', leave:false},
+    {key:'b', label:'B (14:00이전)', leave:true},
+    {key:'c', label:'C (09:00~18:00)', leave:true}
+  ]
+};
+function getSlots(){ return SCH_SLOTS[CENTER] || SCH_SLOTS.jindo; }
+
+function buildSchTable(){
+  var slots = getSlots();
+  var cg = document.getElementById('schColgroup');
+  var thead = document.getElementById('schThead');
+  if(!cg || !thead) return;
+  var cgHtml = '<col style="width:46px"><col style="width:44px">';
+  slots.forEach(function(){ cgHtml += '<col style="width:160px">'; });
+  cgHtml += '<col>';
+  cg.innerHTML = cgHtml;
+  var thHtml = '<tr><th rowspan="2">날짜</th><th rowspan="2">요일</th>';
+  thHtml += '<th colspan="'+slots.length+'" style="border-bottom:1px solid var(--border2)">'+centerLabel()+'</th>';
+  thHtml += '<th rowspan="2">휴무</th></tr><tr>';
+  slots.forEach(function(s){ thHtml += '<th>'+s.label+'</th>'; });
+  thHtml += '</tr>';
+  thead.innerHTML = thHtml;
+}
+
 function defaultSchData(m){
-  var days=DAYS_IN[m]||31, d={};
+  var slots=getSlots(), days=DAYS_IN[m]||31, d={};
   for(var i=1;i<=days;i++){
-    d[i]={a:{worker:'',leave:false},b:{worker:'',leave:false}};
+    d[i]={};
+    slots.forEach(function(s){ d[i][s.key]={worker:'',leave:false}; });
   }
   return d;
 }
@@ -1186,13 +1200,13 @@ async function changeSchMonth(m){
   }
 }
 
-function schCellHtml(slot,d,val){
+function schCellHtml(slot,d,val,hasLeave){
   var opts=INSPECTORS.map(function(n){
     return '<option value="'+escHtml(n)+'"'+(val.worker===n?' selected':'')+'>'+escHtml(n)+'</option>';
   }).join('');
   var leaveActive=val.leave?' active':'';
   var cellLeave=val.leave?' cell-leave':'';
-  var leaveBtn=slot!=='a'
+  var leaveBtn=hasLeave
     ? '<button class="sch-leave-btn'+leaveActive+'" id="sch_'+slot+'_'+d+'_lv" title="연가" onclick="toggleLeave(\''+slot+'\','+d+')">연</button>'
     : '';
   return '<td class="'+cellLeave+'" id="sch_td_'+slot+'_'+d+'">'+
@@ -1205,6 +1219,8 @@ function schCellHtml(slot,d,val){
 }
 
 function renderSchedule(m){
+  buildSchTable();
+  var slots=getSlots();
   var data=loadSchData(m);
   var days=DAYS_IN[m]||31;
   var tbody=document.getElementById('schTbody');
@@ -1212,7 +1228,8 @@ function renderSchedule(m){
   tbody.innerHTML='';
 
   for(var d=1;d<=days;d++){
-    var row=data[d]||{a:{worker:'',leave:false},b:{worker:'',leave:false},c:{worker:'',leave:false}};
+    var row=data[d]||{};
+    slots.forEach(function(s){ if(!row[s.key]) row[s.key]={worker:'',leave:false}; });
     var tr=document.createElement('tr');
     var weekend=schIsWeekend(m,d);
     var sat=schIsSat(m,d);
@@ -1222,18 +1239,19 @@ function renderSchedule(m){
     if(weekend||holiday) tr.className='sch-weekend';
 
     var dowClass='sch-day-dow'+(sat?' dow-sat':(weekend||holiday?' dow-sun':''));
-    var assigned=[row.a.worker,row.b.worker].filter(Boolean);
+    var assigned=slots.map(function(s){ return row[s.key].worker; }).filter(Boolean);
     var huumu=INSPECTORS.filter(function(n){ return assigned.indexOf(n)===-1; }).join(', ');
 
     var dowCell=hdName
       ? '<td class="'+dowClass+'" style="line-height:1.2">'+dow+'<span style="display:block;font-size:9px;color:var(--red);font-weight:600;white-space:nowrap">'+escHtml(hdName)+'</span></td>'
       : '<td class="'+dowClass+'">'+dow+'</td>';
 
+    var cellsHtml='';
+    slots.forEach(function(s){ cellsHtml+=schCellHtml(s.key,d,row[s.key],s.leave); });
+
     tr.innerHTML=
       '<td class="sch-day-num">'+d+'</td>'+
-      dowCell+
-      schCellHtml('a',d,row.a)+
-      schCellHtml('b',d,row.b)+
+      dowCell+cellsHtml+
       '<td class="sch-휴무" id="sch_hm_'+d+'">'+escHtml(huumu)+'</td>';
 
     tbody.appendChild(tr);
@@ -1249,45 +1267,50 @@ function toggleLeave(slot,d){
 }
 
 function updateSchHuumu(d){
-  var selA=document.getElementById('sch_a_'+d);
-  var selB=document.getElementById('sch_b_'+d);
-  var valA=selA?selA.value:'';
-  var valB=selB?selB.value:'';
+  var slots=getSlots();
+  var vals={};
+  slots.forEach(function(s){
+    var sel=document.getElementById('sch_'+s.key+'_'+d);
+    vals[s.key]=sel?sel.value:'';
+  });
 
-  /* 중복 방지: 같은 이름이면 나중에 바꾼 쪽을 초기화 */
-  if(valA && valA===valB){
-    showToast('같은 인원을 중복 배정할 수 없습니다');
-    /* 이벤트 발생 시점의 target을 알 수 없으므로 B를 비움 */
-    if(selB) selB.value='';
-    valB='';
-  }
+  /* 중복 방지 */
+  var seen={};
+  slots.forEach(function(s){
+    var v=vals[s.key];
+    if(v && seen[v]){
+      showToast('같은 인원을 중복 배정할 수 없습니다');
+      var sel=document.getElementById('sch_'+s.key+'_'+d);
+      if(sel) sel.value='';
+      vals[s.key]='';
+    }
+    if(vals[s.key]) seen[vals[s.key]]=true;
+  });
 
-  /* 상대 드롭다운에서 선택된 항목 비활성화 */
-  if(selA){
-    Array.from(selA.options).forEach(function(opt){
-      opt.disabled = opt.value && opt.value===valB;
+  /* 상대 드롭다운 비활성화 */
+  slots.forEach(function(s){
+    var sel=document.getElementById('sch_'+s.key+'_'+d);
+    if(!sel) return;
+    var others=slots.filter(function(o){ return o.key!==s.key; }).map(function(o){ return vals[o.key]; });
+    Array.from(sel.options).forEach(function(opt){
+      opt.disabled=!!(opt.value && others.indexOf(opt.value)!==-1);
     });
-  }
-  if(selB){
-    Array.from(selB.options).forEach(function(opt){
-      opt.disabled = opt.value && opt.value===valA;
-    });
-  }
+  });
 
-  var assigned=[valA,valB].filter(Boolean);
+  var assigned=slots.map(function(s){ return vals[s.key]; }).filter(Boolean);
   var huumu=INSPECTORS.filter(function(n){ return assigned.indexOf(n)===-1; }).join(', ');
   var cell=document.getElementById('sch_hm_'+d);
   if(cell) cell.textContent=huumu;
 }
 
 function collectSchData(m){
-  var days=DAYS_IN[m]||31, data={};
+  var slots=getSlots(), days=DAYS_IN[m]||31, data={};
   for(var d=1;d<=days;d++){
     data[d]={};
-    ['a','b'].forEach(function(slot){
-      var sel=document.getElementById('sch_'+slot+'_'+d);
-      var btn=document.getElementById('sch_'+slot+'_'+d+'_lv');
-      data[d][slot]={
+    slots.forEach(function(s){
+      var sel=document.getElementById('sch_'+s.key+'_'+d);
+      var btn=document.getElementById('sch_'+s.key+'_'+d+'_lv');
+      data[d][s.key]={
         worker:sel?sel.value:'',
         leave:btn?btn.classList.contains('active'):false
       };
@@ -1307,92 +1330,90 @@ async function downloadScheduleExcel(){
   var m=schMonth;
   var data=collectSchData(m);
   var days=DAYS_IN[m]||31;
+  var slots=getSlots();
+  var n=slots.length; /* 슬롯 수 */
+
+  /* 열 인덱스: A=0,B=1,C=2... */
+  function colL(i){ return String.fromCharCode(65+i); }
+  /* 날짜=A(0), 요일=B(1), 슬롯=C~(2..2+n-1), 휴무=(2+n) */
+  var huumuCol=colL(2+n);
+  var totalCols=n+3;
 
   var wb=new ExcelJS.Workbook();
   var ws=wb.addWorksheet(m+'월 근무표');
 
-  ws.columns=[
-    {width:7},{width:10},{width:18},{width:18},{width:28}
-  ];
+  var wsCols=[{width:7},{width:10}];
+  slots.forEach(function(){ wsCols.push({width:18}); });
+  wsCols.push({width:28});
+  ws.columns=wsCols;
 
-  /* 헤더 배경색 */
   var HDR_FILL={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0EDE6'}};
   var HDR_FONT={bold:true,size:10,name:'맑은 고딕'};
   var THIN={style:'thin',color:{argb:'FF000000'}};
   var BORDER={top:THIN,bottom:THIN,left:THIN,right:THIN};
-  var CENTER={horizontal:'center',vertical:'middle',wrapText:true};
+  var ALIGN={horizontal:'center',vertical:'middle',wrapText:true};
 
   /* 행1: 제목 */
-  ws.mergeCells('A1:E1');
+  ws.mergeCells('A1:'+huumuCol+'1');
   var t=ws.getCell('A1');
   t.value=SCH_YEAR+'년 '+m+'월 운항관리센터 근무 편성표('+centerLabel()+')';
   t.font={bold:true,size:13,name:'맑은 고딕'};
-  t.alignment=CENTER;
-  t.border=BORDER;
+  t.alignment=ALIGN; t.border=BORDER;
   ws.getRow(1).height=28;
 
   /* 행2: 대분류 헤더 */
-  ws.mergeCells('A2:A3');
-  ws.mergeCells('B2:B3');
-  ws.mergeCells('C2:D2');
-  ws.mergeCells('E2:E3');
-  [['A2','날짜'],['B2','요일'],['C2',centerLabel()],['E2','휴무']].forEach(function(pair){
-    var c=ws.getCell(pair[0]);
-    c.value=pair[1]; c.font=HDR_FONT; c.alignment=CENTER;
-    c.fill=HDR_FILL; c.border=BORDER;
+  ws.mergeCells('A2:A3'); ws.mergeCells('B2:B3');
+  ws.mergeCells('C2:'+colL(2+n-1)+'2');
+  ws.mergeCells(huumuCol+'2:'+huumuCol+'3');
+  [['A2','날짜'],['B2','요일'],['C2',centerLabel()],[huumuCol+'2','휴무']].forEach(function(pair){
+    var c=ws.getCell(pair[0]); c.value=pair[1];
+    c.font=HDR_FONT; c.alignment=ALIGN; c.fill=HDR_FILL; c.border=BORDER;
   });
   ws.getRow(2).height=20;
 
-  /* 행3: 소분류 헤더 */
-  [['C3','A (05:00이전)'],['D3','B (10:30이전)']].forEach(function(pair){
-    var c=ws.getCell(pair[0]);
-    c.value=pair[1]; c.font=HDR_FONT; c.alignment=CENTER;
-    c.fill=HDR_FILL; c.border=BORDER;
+  /* 행3: 슬롯 소분류 헤더 */
+  slots.forEach(function(s,i){
+    var c=ws.getCell(colL(2+i)+'3');
+    c.value=s.label; c.font=HDR_FONT; c.alignment=ALIGN; c.fill=HDR_FILL; c.border=BORDER;
   });
   ws.getRow(3).height=20;
 
-  /* 데이터 행 (4행~) */
+  /* 데이터 행 */
   for(var d=1;d<=days;d++){
-    var r=data[d];
+    var r=data[d]||{};
+    slots.forEach(function(s){ if(!r[s.key]) r[s.key]={worker:'',leave:false}; });
     var rowIdx=3+d;
     var dow=schDOW(m,d);
     var weekend=schIsWeekend(m,d);
     var holiday=schIsHoliday(m,d);
     var hdName=schHolidayName(m,d);
-    var assigned=[r.a.worker,r.b.worker].filter(Boolean);
-    var huumu=INSPECTORS.filter(function(n){return assigned.indexOf(n)===-1;}).join(', ');
+    var assigned=slots.map(function(s){ return r[s.key].worker; }).filter(Boolean);
+    var huumu=INSPECTORS.filter(function(n2){ return assigned.indexOf(n2)===-1; }).join(', ');
 
     var bgArgb=(weekend||holiday)?'FFFFFDE7':'FFFFFFFF';
     var BG={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}};
+    var wkColor={argb:(weekend||holiday)?'FFCC0000':'FF000000'};
     var dowText=dow+(hdName?'\n'+hdName:'');
 
-    /* 날짜·요일·휴무 */
-    var vals=[['A',d],['B',dowText],['E',huumu]];
-    vals.forEach(function(pair){
+    [['A',d],['B',dowText],[huumuCol,huumu]].forEach(function(pair){
       var c=ws.getCell(pair[0]+rowIdx);
-      c.value=pair[1]; c.alignment=CENTER;
-      c.fill=BG; c.border=BORDER;
-      c.font={size:10,name:'맑은 고딕',
-        color:{argb:(weekend||holiday)?'FFCC0000':'FF000000'}};
+      c.value=pair[1]; c.alignment=ALIGN; c.fill=BG; c.border=BORDER;
+      c.font={size:10,name:'맑은 고딕',color:wkColor};
     });
 
-    /* A근무 */
-    var ca=ws.getCell('C'+rowIdx);
-    ca.value=r.a.worker||'';
-    ca.alignment=CENTER; ca.fill=BG; ca.border=BORDER;
-    ca.font={size:10,name:'맑은 고딕'};
-
-    /* B근무 (연가 = 주황 이탤릭) */
-    var cb=ws.getCell('D'+rowIdx);
-    cb.value=r.b.worker||'';
-    cb.alignment=CENTER; cb.border=BORDER;
-    if(r.b.leave && r.b.worker){
-      cb.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFCE4B0'}};
-      cb.font={italic:true,size:10,name:'맑은 고딕',color:{argb:'FF8A5A00'}};
-    } else {
-      cb.fill=BG;
-      cb.font={size:10,name:'맑은 고딕'};
-    }
+    slots.forEach(function(s,i){
+      var cell=ws.getCell(colL(2+i)+rowIdx);
+      var sv=r[s.key];
+      cell.value=sv.worker||'';
+      cell.alignment=ALIGN; cell.border=BORDER;
+      if(s.leave && sv.leave && sv.worker){
+        cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFCE4B0'}};
+        cell.font={italic:true,size:10,name:'맑은 고딕',color:{argb:'FF8A5A00'}};
+      } else {
+        cell.fill=BG;
+        cell.font={size:10,name:'맑은 고딕'};
+      }
+    });
 
     ws.getRow(rowIdx).height=18;
   }
@@ -1426,7 +1447,6 @@ function switchCenter(c){
   /* 페이지 메타 갱신 */
   document.getElementById('pageMeta').textContent = '2026년 ' + curMonth + '월 · ' + centerLabel() + '사무소';
   document.getElementById('schPageMeta').textContent = '2026년 · ' + centerLabel() + '사무소';
-  document.getElementById('schTblCenterLabel').textContent = centerLabel();
 
   /* 테이블 재구성 */
   rebuildColgroup();
