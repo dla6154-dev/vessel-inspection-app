@@ -1088,16 +1088,18 @@ function getHuumuCount(){ return Math.max(1, INSPECTORS.length); }
 
 function buildSchTable(){
   var slots = getSlots();
+  var n = getHuumuCount();
   var cg = document.getElementById('schColgroup');
   var thead = document.getElementById('schThead');
   if(!cg || !thead) return;
   var cgHtml = '<col style="width:46px"><col style="width:44px">';
   slots.forEach(function(){ cgHtml += '<col style="width:160px">'; });
-  cgHtml += '<col>';
+  for(var j=0;j<n;j++) cgHtml += '<col style="width:160px">';
   cg.innerHTML = cgHtml;
   var thHtml = '<tr><th rowspan="2">날짜</th><th rowspan="2">요일</th>';
   thHtml += '<th colspan="'+slots.length+'" style="border-bottom:1px solid var(--border2)">'+centerLabel()+'</th>';
-  thHtml += '<th rowspan="2">휴무</th></tr><tr>';
+  thHtml += '<th colspan="'+n+'" rowspan="2">휴무</th>';
+  thHtml += '</tr><tr>';
   slots.forEach(function(s){ thHtml += '<th>'+s.label+'</th>'; });
   thHtml += '</tr>';
   thead.innerHTML = thHtml;
@@ -1206,16 +1208,15 @@ async function changeSchMonth(m){
 
 function schHuumuCellHtml(d,row){
   var n=getHuumuCount();
-  var html='<td style="padding:2px 4px;vertical-align:middle"><div style="display:flex;gap:4px;flex-wrap:nowrap">';
+  var html='';
   for(var j=1;j<=n;j++){
     var key='h'+j;
     var val=row[key]||{worker:''};
     var opts=INSPECTORS.map(function(nm){
       return '<option value="'+escHtml(nm)+'"'+(val.worker===nm?' selected':'')+'>'+escHtml(nm)+'</option>';
     }).join('');
-    html+='<select class="sch-worker-sel" id="sch_'+key+'_'+d+'" onchange="updateSchHuumu('+d+')" style="background:#f0ede6;flex:1;min-width:50px"><option value=""></option>'+opts+'</select>';
+    html+='<td style="background:#f7f6f2"><div class="sch-cell"><select class="sch-worker-sel" id="sch_'+key+'_'+d+'" onchange="updateSchHuumu('+d+')" style="background:#f0ede6"><option value=""></option>'+opts+'</select></div></td>';
   }
-  html+='</div></td>';
   return html;
 }
 
@@ -1311,13 +1312,15 @@ function updateSchHuumu(d){
     if(vals[k]) seen[vals[k]]=true;
   });
 
-  /* 상대 드롭다운 비활성화 */
+  /* 선택된 항목을 빨간색으로 표시 (disabled 제거 — 선택 시 change에서 경고) */
   allKeys.forEach(function(k){
     var sel=document.getElementById('sch_'+k+'_'+d);
     if(!sel) return;
     var others=allKeys.filter(function(o){return o!==k;}).map(function(o){return vals[o];});
     Array.from(sel.options).forEach(function(opt){
-      opt.disabled=!!(opt.value && others.indexOf(opt.value)!==-1);
+      var taken=!!(opt.value && others.indexOf(opt.value)!==-1);
+      opt.style.color = taken ? '#c0392b' : '';
+      opt.style.fontWeight = taken ? '600' : '';
     });
   });
 }
