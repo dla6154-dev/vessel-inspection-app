@@ -1544,9 +1544,9 @@ function addCalendarSheet(wb, m, data, slots, hn){
       if(sv.worker) activeSlots.push({s:s, worker:sv.worker});
     });
 
-    /* 행 높이: 날짜줄(1) + 슬롯당 2줄(시간+이름) */
+    /* 행 높이: 날짜줄(1) + 채워진 슬롯 수 */
     var exRow=ws.getRow(rowBase+wk);
-    var neededLines=1+activeSlots.length*2;
+    var neededLines=1+activeSlots.length;
     var newH=neededLines*rowHeightPerLine+4;
     if(!exRow.height || exRow.height < newH) exRow.height=newH;
 
@@ -1561,15 +1561,10 @@ function addCalendarSheet(wb, m, data, slots, hn){
     ];
     activeSlots.forEach(function(item, idx){
       var slotKey=item.s.label.replace(/\s*\(.*\)/,''); /* A / B / C */
-      var timeStr=item.s.time ? ' ('+item.s.time+')' : '';
       var color=SLOT_COLORS[idx % SLOT_COLORS.length];
       var isLast=(idx===activeSlots.length-1);
       richParts.push({
-        text: slotKey+timeStr+'\n',
-        font:{size:9,name:'맑은 고딕',color:{argb:color}}
-      });
-      richParts.push({
-        text: item.worker+(isLast?'':'\n'),
+        text: slotKey+' '+item.worker+(isLast?'':'\n'),
         font:{bold:true,size:11,name:'맑은 고딕',color:{argb:color}}
       });
     });
@@ -1588,6 +1583,32 @@ function addCalendarSheet(wb, m, data, slots, hn){
       }
     }
   }
+
+  /* 비고란 */
+  var noteRow=rowBase+totalWeeks+1;
+  ws.mergeCells('A'+noteRow+':G'+noteRow);
+  var noteTitle=ws.getCell('A'+noteRow);
+  noteTitle.value='※ 비고 (근무 형태)';
+  noteTitle.font={bold:true,size:11,name:'맑은 고딕'};
+  noteTitle.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0EDE6'}};
+  noteTitle.alignment={horizontal:'left',vertical:'middle'};
+  noteTitle.border={top:THICK,bottom:THICK,left:THICK,right:THICK};
+  ws.getRow(noteRow).height=20;
+
+  var noteRow2=noteRow+1;
+  var noteLines=slots.map(function(s,i){
+    var color=SLOT_COLORS[i % SLOT_COLORS.length];
+    return {
+      text: s.label.replace(/\s*\(.*\)/,'')+' : '+s.time+(i<slots.length-1?'\n':''),
+      font:{size:10,name:'맑은 고딕',color:{argb:color},bold:true}
+    };
+  });
+  ws.mergeCells('A'+noteRow2+':G'+noteRow2);
+  var noteCell=ws.getCell('A'+noteRow2);
+  noteCell.value={richText:noteLines};
+  noteCell.alignment={horizontal:'left',vertical:'middle',wrapText:true};
+  noteCell.border={top:THICK,bottom:THICK,left:THICK,right:THICK};
+  ws.getRow(noteRow2).height=slots.length*17+4;
 }
 
 /* ── 센터 전환 ── */
