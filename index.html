@@ -1007,7 +1007,7 @@ async function downloadExcel(){
   /* 열 너비 */
   var cols=[{width:7},{width:5}]; /* 날짜, A/B */
   sn.forEach(function(){ cols.push({width:11}); });
-  cols.push({width:9},{width:9},{width:10},{width:10},{width:28});
+  cols.push({width:9},{width:9},{width:10},{width:10},{width:42});
   ws.columns=cols;
 
   var totalCols=2+sn.length+5; /* 날짜+AB+선박들+점검횟수+보고서유+점검자+조출자+비고 */
@@ -1108,9 +1108,17 @@ async function downloadExcel(){
 
       /* 비고 */
       var nc=exRow.getCell(base+5);
-      nc.value=r.note||''; nc.alignment=ALIGN_L;
+      var noteVal=r.note||'';
+      nc.value=noteVal;
+      nc.alignment={horizontal:'left',vertical:'middle',wrapText:true};
       nc.font={size:9,name:FONT}; nc.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowBg}};
       nc.border=BORD_ALL;
+      /* 내용 길이에 따라 행 높이 자동 조절 (42자 기준 줄바꿈) */
+      if(noteVal.length>42){
+        var lines=Math.ceil(noteVal.length/42);
+        var newH=Math.max(exRow.height||16, lines*14+4);
+        exRow.height=newH;
+      }
     });
 
     /* 날짜 셀 세로 병합 (a+b행) */
