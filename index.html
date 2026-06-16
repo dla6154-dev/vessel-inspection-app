@@ -1473,6 +1473,9 @@ async function downloadScheduleExcel(){
     ws.getRow(rowIdx).height=18;
   }
 
+  /* ── 달력 시트 추가 ── */
+  addCalendarSheet(wb, m, data, slots, hn);
+
   var buf=await wb.xlsx.writeBuffer();
   var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   var a=document.createElement('a');
@@ -1480,6 +1483,136 @@ async function downloadScheduleExcel(){
   a.download=SCH_YEAR+'년_'+m+'월_근무편성표_'+centerLabel()+'사무소.xlsx';
   a.click();
   showToast('근무표 엑셀 다운로드 완료');
+}
+
+function addCalendarSheet(wb, m, data, slots, hn){
+  var ws=wb.addWorksheet(m+'월 달력');
+  var days=DAYS_IN[m]||31;
+  var DOW_KR=['일','월','화','수','목','금','토'];
+
+  /* 열 너비: 날짜(일~토) 7열 */
+  ws.columns=[
+    {width:16},{width:16},{width:16},{width:16},{width:16},{width:16},{width:16}
+  ];
+
+  var THIN={style:'thin',color:{argb:'FFCCCCCC'}};
+  var THICK={style:'medium',color:{argb:'FF888888'}};
+  var BORDER_DAY={top:THICK,bottom:THICK,left:THICK,right:THICK};
+  var ALIGN_CTR={horizontal:'center',vertical:'top',wrapText:true};
+  var ALIGN_L={horizontal:'left',vertical:'top',wrapText:true};
+
+  /* 행1: 제목 */
+  ws.mergeCells('A1:G1');
+  var titleCell=ws.getCell('A1');
+  titleCell.value=SCH_YEAR+'년 '+m+'월 근무 달력 ('+centerLabel()+')';
+  titleCell.font={bold:true,size:14,name:'맑은 고딕'};
+  titleCell.alignment={horizontal:'center',vertical:'middle'};
+  titleCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF2C3E50'}};
+  titleCell.font={bold:true,size:14,name:'맑은 고딕',color:{argb:'FFFFFFFF'}};
+  ws.getRow(1).height=32;
+
+  /* 행2: 요일 헤더 */
+  DOW_KR.forEach(function(d,i){
+    var c=ws.getRow(2).getCell(i+1);
+    c.value=d;
+    c.font={bold:true,size:11,name:'맑은 고딕',
+      color:{argb: i===0?'FFCC0000': i===6?'FF1155CC':'FF000000'}};
+    c.alignment={horizontal:'center',vertical:'middle'};
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0EDE6'}};
+    c.border={top:THICK,bottom:THICK,left:THICK,right:THICK};
+  });
+  ws.getRow(2).height=22;
+
+  /* 각 날짜를 달력 격자에 배치 */
+  /* 1일의 요일 구하기 (0=일,1=월,...,6=토) */
+  var firstDow=new Date(SCH_YEAR, m-1, 1).getDay();
+
+  /* 행당 줄 수: 날짜줄(1) + 슬롯줄(slots.length) + 휴무줄(1) */
+  var linesPerDay=1+slots.length+(hn>0?1:0);
+  var rowHeightPerLine=16;
+
+  var rowBase=3; /* 데이터 시작 행(1-based) */
+  var weekRow=0; /* 현재 주 인덱스 */
+
+  for(var d=1;d<=days;d++){
+    var dowIdx=(firstDow+d-1)%7;
+    var wk=Math.floor((firstDow+d-1)/7);
+
+    if(d===1 || dowIdx===0){
+      /* 새 주 시작 → 행 높이 설정 */
+      var exRow=ws.getRow(rowBase+wk);
+      exRow.height=linesPerDay*rowHeightPerLine+4;
+    }
+
+    var r=data[d]||{};
+    var isWE=schIsWeekend(m,d);
+    var isHd=schIsHoliday(m,d);
+    var hdName=schHolidayName(m,d);
+    var bgArgb=(isWE||isHd)?'FFFFFDE7':'FFFFFFFF';
+    var dateColor=(isWE||isHd)?'FFCC0000':'FF222222';
+
+    /* 셀 내용 구성: 날짜 + 슬롯 + 휴무 */
+    var lines=[];
+    /* 날짜 줄 */
+    var dateLine=d+'일'+(hdName?' ('+hdName+')':'');
+    lines.push(dateLine);
+    /* 슬롯 */
+    slots.forEach(function(s){
+      var sv=r[s.key]||{worker:''};
+      var slotLabel=s.label.replace(/\s*\(.*\)/,''); /* A,B,C만 */
+      lines.push(slotLabel+': '+(sv.worker||'—'));
+    });
+    /* 휴무 */
+    if(hn>0){
+      var huNames=[];
+      for(var jj=1;jj<=hn;jj++){
+        var hw=(r['h'+jj]||{}).worker||'';
+        if(hw) huNames.push(hw);
+      }
+      lines.push('휴무: '+(huNames.length?huNames.join(', '):'—'));
+    }
+
+    var exRow2=ws.getRow(rowBase+wk);
+    var cell=exRow2.getCell(dowIdx+1);
+    cell.value=lines.join('\n');
+    cell.alignment=ALIGN_L;
+    cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}};
+    cell.border=BORDER_DAY;
+
+    /* 날짜 줄 강조를 위해 richText 사용 */
+    var richParts=[
+      {text:dateLine+'\n', font:{bold:true,size:11,name:'맑은 고딕',color:{argb:dateColor}}}
+    ];
+    slots.forEach(function(s){
+      var sv=r[s.key]||{worker:''};
+      var slotLabel=s.label.replace(/\s*\(.*\)/,'');
+      richParts.push({text:slotLabel+': '+(sv.worker||'—')+'\n',
+        font:{size:10,name:'맑은 고딕',color:{argb:'FF333333'}}});
+    });
+    if(hn>0){
+      var huNames2=[];
+      for(var jj2=1;jj2<=hn;jj2++){
+        var hw2=(r['h'+jj2]||{}).worker||'';
+        if(hw2) huNames2.push(hw2);
+      }
+      richParts.push({text:'휴무: '+(huNames2.length?huNames2.join(', '):'—'),
+        font:{size:10,name:'맑은 고딕',italic:true,color:{argb:'FF777777'}}});
+    }
+    cell.value={richText:richParts};
+  }
+
+  /* 빈 칸(달력 앞뒤 여백)도 테두리/배경 처리 */
+  var totalWeeks=Math.ceil((firstDow+days)/7);
+  for(var wk2=0;wk2<totalWeeks;wk2++){
+    for(var col=0;col<7;col++){
+      var dayNum=(wk2*7+col)-firstDow+1;
+      if(dayNum<1||dayNum>days){
+        var blankCell=ws.getRow(rowBase+wk2).getCell(col+1);
+        blankCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF5F5F5'}};
+        blankCell.border=BORDER_DAY;
+      }
+    }
+  }
 }
 
 /* ── 센터 전환 ── */
