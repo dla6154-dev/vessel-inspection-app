@@ -1487,91 +1487,115 @@ async function downloadScheduleExcel(){
 
 function addCalendarSheet(wb, m, data, slots, hn){
   var ws=wb.addWorksheet(m+'월 달력');
-  var days=DAYS_IN[m]||31;
-  var DOW_KR=['일','월','화','수','목','금','토'];
-
-  /* 슬롯별 배경색 (ARGB) */
-  var SLOT_COLORS=['FF4472C4','FF70AD47','FFED7D31','FF9B59B6'];
 
   ws.columns=[
-    {width:16},{width:16},{width:16},{width:16},{width:16},{width:16},{width:16}
+    {width:17},{width:17},{width:17},{width:17},{width:17},{width:17},{width:17}
   ];
 
+  /* A4 가로 인쇄 설정 — 1페이지에 꽉 차게 */
+  ws.pageSetup={
+    paperSize:9,          /* A4 */
+    orientation:'portrait',
+    fitToPage:true,
+    fitToWidth:1,
+    fitToHeight:1,
+    horizontalCentered:true
+  };
+  ws.pageSetup.margins={
+    left:0.4,right:0.4,top:0.4,bottom:0.4,header:0,footer:0
+  };
+
+  /* 달력 블록을 두 번 그림 (위/아래 반반) */
+  var end1=drawCalendarBlock(ws, m, data, slots, 1);
+  /* 구분선 */
+  var divRow=end1+1;
+  ws.mergeCells('A'+divRow+':G'+divRow);
+  var divCell=ws.getCell('A'+divRow);
+  divCell.value='─'.repeat(60);
+  divCell.alignment={horizontal:'center',vertical:'middle'};
+  divCell.font={size:8,color:{argb:'FFAAAAAA'}};
+  ws.getRow(divRow).height=10;
+
+  drawCalendarBlock(ws, m, data, slots, divRow+1);
+}
+
+/* 달력 블록을 startRow 위치부터 그리고 마지막 행 번호를 반환 */
+function drawCalendarBlock(ws, m, data, slots, startRow){
+  var days=DAYS_IN[m]||31;
+  var DOW_KR=['일','월','화','수','목','금','토'];
+  var SLOT_COLORS=['FF4472C4','FF70AD47','FFED7D31','FF9B59B6'];
   var THICK={style:'medium',color:{argb:'FF888888'}};
   var BORDER_DAY={top:THICK,bottom:THICK,left:THICK,right:THICK};
-  var ALIGN_CTR={horizontal:'center',vertical:'top',wrapText:true};
+  var R=startRow; /* 현재 쓰는 행 (1-based) */
 
-  /* 행1: 제목 */
-  ws.mergeCells('A1:G1');
-  var titleCell=ws.getCell('A1');
+  /* 제목 행 */
+  ws.mergeCells('A'+R+':G'+R);
+  var titleCell=ws.getCell('A'+R);
   titleCell.value=SCH_YEAR+'년 '+m+'월 근무 달력 ('+centerLabel()+')';
   titleCell.alignment={horizontal:'center',vertical:'middle'};
   titleCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF2C3E50'}};
-  titleCell.font={bold:true,size:14,name:'맑은 고딕',color:{argb:'FFFFFFFF'}};
-  ws.getRow(1).height=32;
+  titleCell.font={bold:true,size:13,name:'맑은 고딕',color:{argb:'FFFFFFFF'}};
+  ws.getRow(R).height=26;
+  R++;
 
-  /* 행2: 요일 헤더 */
+  /* 요일 헤더 */
   DOW_KR.forEach(function(d,i){
-    var c=ws.getRow(2).getCell(i+1);
+    var c=ws.getRow(R).getCell(i+1);
     c.value=d;
-    c.font={bold:true,size:11,name:'맑은 고딕',
-      color:{argb: i===0?'FFCC0000': i===6?'FF1155CC':'FF000000'}};
+    c.font={bold:true,size:10,name:'맑은 고딕',
+      color:{argb:i===0?'FFCC0000':i===6?'FF1155CC':'FF000000'}};
     c.alignment={horizontal:'center',vertical:'middle'};
     c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0EDE6'}};
     c.border={top:THICK,bottom:THICK,left:THICK,right:THICK};
   });
-  ws.getRow(2).height=22;
+  ws.getRow(R).height=18;
+  R++;
 
-  var firstDow=new Date(SCH_YEAR, m-1, 1).getDay();
-  /* 최대 슬롯 수 기준으로 행 높이 계산 (날짜줄 + 최대 슬롯수) */
-  var rowHeightPerLine=17;
-  var rowBase=3;
+  var rowBase=R;
+  var firstDow=new Date(SCH_YEAR,m-1,1).getDay();
+  var rowHeightPerLine=15;
 
   for(var d=1;d<=days;d++){
     var dowIdx=(firstDow+d-1)%7;
     var wk=Math.floor((firstDow+d-1)/7);
-
     var r=data[d]||{};
     var isWE=schIsWeekend(m,d);
     var isHd=schIsHoliday(m,d);
     var bgArgb=(isWE||isHd)?'FFFFFDE7':'FFFFFFFF';
     var dateColor=(isWE||isHd)?'FFCC0000':'FF222222';
 
-    /* 근무자 있는 슬롯만 수집 */
     var activeSlots=[];
     slots.forEach(function(s){
       var sv=r[s.key]||{worker:''};
-      if(sv.worker) activeSlots.push({s:s, worker:sv.worker});
+      if(sv.worker) activeSlots.push({s:s,worker:sv.worker});
     });
 
-    /* 행 높이: 날짜줄(1) + 채워진 슬롯 수 */
     var exRow=ws.getRow(rowBase+wk);
     var neededLines=1+activeSlots.length;
     var newH=neededLines*rowHeightPerLine+4;
-    if(!exRow.height || exRow.height < newH) exRow.height=newH;
+    if(!exRow.height||exRow.height<newH) exRow.height=newH;
 
     var cell=exRow.getCell(dowIdx+1);
-    cell.alignment=ALIGN_CTR;
+    cell.alignment={horizontal:'center',vertical:'top',wrapText:true};
     cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}};
     cell.border=BORDER_DAY;
 
-    /* richText: 날짜 + 근무자(슬롯별 색) */
     var richParts=[
-      {text:d+'일\n', font:{bold:true,size:11,name:'맑은 고딕',color:{argb:dateColor}}}
+      {text:d+'일\n',font:{bold:true,size:10,name:'맑은 고딕',color:{argb:dateColor}}}
     ];
-    activeSlots.forEach(function(item, idx){
-      var slotKey=item.s.label.replace(/\s*\(.*\)/,''); /* A / B / C */
-      var color=SLOT_COLORS[idx % SLOT_COLORS.length];
+    activeSlots.forEach(function(item,idx){
+      var slotKey=item.s.label.replace(/\s*\(.*\)/,'');
+      var color=SLOT_COLORS[idx%SLOT_COLORS.length];
       var isLast=(idx===activeSlots.length-1);
       richParts.push({
-        text: slotKey+' '+item.worker+(isLast?'':'\n'),
-        font:{bold:true,size:11,name:'맑은 고딕',color:{argb:color}}
+        text:slotKey+' '+item.worker+(isLast?'':'\n'),
+        font:{bold:true,size:10,name:'맑은 고딕',color:{argb:color}}
       });
     });
     cell.value={richText:richParts};
   }
 
-  /* 빈 칸 테두리/배경 처리 */
+  /* 빈 칸 처리 */
   var totalWeeks=Math.ceil((firstDow+days)/7);
   for(var wk2=0;wk2<totalWeeks;wk2++){
     for(var col=0;col<7;col++){
@@ -1584,31 +1608,25 @@ function addCalendarSheet(wb, m, data, slots, hn){
     }
   }
 
-  /* 비고란 */
-  var noteRow=rowBase+totalWeeks+1;
-  ws.mergeCells('A'+noteRow+':G'+noteRow);
-  var noteTitle=ws.getCell('A'+noteRow);
-  noteTitle.value='※ 비고 (근무 형태)';
-  noteTitle.font={bold:true,size:11,name:'맑은 고딕'};
-  noteTitle.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0EDE6'}};
-  noteTitle.alignment={horizontal:'left',vertical:'middle'};
-  noteTitle.border={top:THICK,bottom:THICK,left:THICK,right:THICK};
-  ws.getRow(noteRow).height=20;
+  var noteRow=rowBase+totalWeeks;
 
-  var noteRow2=noteRow+1;
+  /* 비고란 */
+  ws.mergeCells('A'+noteRow+':G'+noteRow);
+  var noteCell=ws.getCell('A'+noteRow);
   var noteLines=slots.map(function(s,i){
-    var color=SLOT_COLORS[i % SLOT_COLORS.length];
+    var color=SLOT_COLORS[i%SLOT_COLORS.length];
     return {
-      text: s.label.replace(/\s*\(.*\)/,'')+' : '+s.time+(i<slots.length-1?'\n':''),
-      font:{size:10,name:'맑은 고딕',color:{argb:color},bold:true}
+      text:(i>0?' / ':'')+s.label.replace(/\s*\(.*\)/,'')+' '+s.time,
+      font:{size:9,name:'맑은 고딕',color:{argb:color},bold:true}
     };
   });
-  ws.mergeCells('A'+noteRow2+':G'+noteRow2);
-  var noteCell=ws.getCell('A'+noteRow2);
   noteCell.value={richText:noteLines};
-  noteCell.alignment={horizontal:'left',vertical:'middle',wrapText:true};
+  noteCell.alignment={horizontal:'center',vertical:'middle'};
+  noteCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF7F6F2'}};
   noteCell.border={top:THICK,bottom:THICK,left:THICK,right:THICK};
-  ws.getRow(noteRow2).height=slots.length*17+4;
+  ws.getRow(noteRow).height=18;
+
+  return noteRow;
 }
 
 /* ── 센터 전환 ── */
