@@ -1362,16 +1362,15 @@ async function downloadScheduleExcel(){
 
   /* 열 인덱스: A=0,B=1,C=2... */
   function colL(i){ return String.fromCharCode(65+i); }
-  /* 날짜=A(0), 요일=B(1), 슬롯=C~(2..2+n-1), 휴무=(2+n) */
-  var huumuCol=colL(2+n);
-  var totalCols=n+3;
+  /* 날짜=A(0), 요일=B(1), 슬롯=C~(2..2+n-1), 휴무=C(2+n)~(2+n+hn-1) */
+  var lastCol=colL(2+n+hn-1);
 
   var wb=new ExcelJS.Workbook();
   var ws=wb.addWorksheet(m+'월 근무표');
 
   var wsCols=[{width:7},{width:10}];
   slots.forEach(function(){ wsCols.push({width:18}); });
-  wsCols.push({width:28});
+  for(var hh=0;hh<hn;hh++) wsCols.push({width:14});
   ws.columns=wsCols;
 
   var HDR_FILL={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0EDE6'}};
@@ -1381,7 +1380,7 @@ async function downloadScheduleExcel(){
   var ALIGN={horizontal:'center',vertical:'middle',wrapText:true};
 
   /* 행1: 제목 */
-  ws.mergeCells('A1:'+huumuCol+'1');
+  ws.mergeCells('A1:'+lastCol+'1');
   var t=ws.getCell('A1');
   t.value=SCH_YEAR+'년 '+m+'월 운항관리센터 근무 편성표('+centerLabel()+')';
   t.font={bold:true,size:13,name:'맑은 고딕'};
@@ -1390,9 +1389,13 @@ async function downloadScheduleExcel(){
 
   /* 행2: 대분류 헤더 */
   ws.mergeCells('A2:A3'); ws.mergeCells('B2:B3');
-  ws.mergeCells('C2:'+colL(2+n-1)+'2');
-  ws.mergeCells(huumuCol+'2:'+huumuCol+'3');
-  [['A2','날짜'],['B2','요일'],['C2',centerLabel()],[huumuCol+'2','휴무']].forEach(function(pair){
+  if(n>1) ws.mergeCells('C2:'+colL(2+n-1)+'2');
+  /* 휴무 헤더: 행2~행3 머지, hn개 열 */
+  var huumuStart=colL(2+n);
+  if(hn>1) ws.mergeCells(huumuStart+'2:'+lastCol+'3');
+  else ws.mergeCells(huumuStart+'2:'+huumuStart+'3');
+
+  [['A2','날짜'],['B2','요일'],['C2',centerLabel()],[huumuStart+'2','휴무']].forEach(function(pair){
     var c=ws.getCell(pair[0]); c.value=pair[1];
     c.font=HDR_FONT; c.alignment=ALIGN; c.fill=HDR_FILL; c.border=BORDER;
   });
@@ -1414,21 +1417,19 @@ async function downloadScheduleExcel(){
     var weekend=schIsWeekend(m,d);
     var holiday=schIsHoliday(m,d);
     var hdName=schHolidayName(m,d);
-    var huumuWorkers=[];
-    for(var jj=1;jj<=hn;jj++){ var hw=(r['h'+jj]||{}).worker; if(hw) huumuWorkers.push(hw); }
-    var huumu=huumuWorkers.join(', ');
 
     var bgArgb=(weekend||holiday)?'FFFFFDE7':'FFFFFFFF';
     var BG={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}};
     var wkColor={argb:(weekend||holiday)?'FFCC0000':'FF000000'};
     var dowText=dow+(hdName?'\n'+hdName:'');
 
-    [['A',d],['B',dowText],[huumuCol,huumu]].forEach(function(pair){
+    [['A',d],['B',dowText]].forEach(function(pair){
       var c=ws.getCell(pair[0]+rowIdx);
       c.value=pair[1]; c.alignment=ALIGN; c.fill=BG; c.border=BORDER;
       c.font={size:10,name:'맑은 고딕',color:wkColor};
     });
 
+    /* 근무 슬롯 */
     slots.forEach(function(s,i){
       var cell=ws.getCell(colL(2+i)+rowIdx);
       var sv=r[s.key];
@@ -1442,6 +1443,15 @@ async function downloadScheduleExcel(){
         cell.font={size:10,name:'맑은 고딕'};
       }
     });
+
+    /* 휴무 슬롯 — 1인 1셀 */
+    for(var jj=1;jj<=hn;jj++){
+      var hcell=ws.getCell(colL(2+n+jj-1)+rowIdx);
+      hcell.value=(r['h'+jj]||{}).worker||'';
+      hcell.alignment=ALIGN; hcell.border=BORDER;
+      hcell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF7F6F2'}};
+      hcell.font={size:10,name:'맑은 고딕'};
+    }
 
     ws.getRow(rowIdx).height=18;
   }
