@@ -1083,6 +1083,10 @@ var SCH_SLOTS = {
 };
 function getSlots(){ return SCH_SLOTS[CENTER] || SCH_SLOTS.jindo; }
 
+/* 센터별 휴무 선택 칸 수 */
+var SCH_HUUMU_COUNT = { jindo:2, namgang:1 };
+function getHuumuCount(){ return SCH_HUUMU_COUNT[CENTER] || 1; }
+
 function buildSchTable(){
   var slots = getSlots();
   var cg = document.getElementById('schColgroup');
@@ -1101,10 +1105,11 @@ function buildSchTable(){
 }
 
 function defaultSchData(m){
-  var slots=getSlots(), days=DAYS_IN[m]||31, d={};
+  var slots=getSlots(), n=getHuumuCount(), days=DAYS_IN[m]||31, d={};
   for(var i=1;i<=days;i++){
     d[i]={};
     slots.forEach(function(s){ d[i][s.key]={worker:'',leave:false}; });
+    for(var j=1;j<=n;j++) d[i]['h'+j]={worker:''};
   }
   return d;
 }
@@ -1200,6 +1205,22 @@ async function changeSchMonth(m){
   }
 }
 
+function schHuumuCellHtml(d,row){
+  var n=getHuumuCount();
+  var html='<td style="padding:2px 4px;vertical-align:middle">';
+  for(var j=1;j<=n;j++){
+    var key='h'+j;
+    var val=row[key]||{worker:''};
+    var opts=INSPECTORS.map(function(nm){
+      return '<option value="'+escHtml(nm)+'"'+(val.worker===nm?' selected':'')+'>'+escHtml(nm)+'</option>';
+    }).join('');
+    if(j>1) html+='<div style="height:3px"></div>';
+    html+='<div class="sch-cell"><select class="sch-worker-sel" id="sch_'+key+'_'+d+'" onchange="updateSchHuumu('+d+')" style="background:#f0ede6"><option value=""></option>'+opts+'</select></div>';
+  }
+  html+='</td>';
+  return html;
+}
+
 function schCellHtml(slot,d,val,hasLeave){
   var opts=INSPECTORS.map(function(n){
     return '<option value="'+escHtml(n)+'"'+(val.worker===n?' selected':'')+'>'+escHtml(n)+'</option>';
@@ -1248,11 +1269,11 @@ function renderSchedule(m){
 
     var cellsHtml='';
     slots.forEach(function(s){ cellsHtml+=schCellHtml(s.key,d,row[s.key],s.leave); });
+    cellsHtml+=schHuumuCellHtml(d,row);
 
     tr.innerHTML=
       '<td class="sch-day-num">'+d+'</td>'+
-      dowCell+cellsHtml+
-      '<td class="sch-휴무" id="sch_hm_'+d+'">'+escHtml(huumu)+'</td>';
+      dowCell+cellsHtml;
 
     tbody.appendChild(tr);
   }
@@ -1268,43 +1289,43 @@ function toggleLeave(slot,d){
 
 function updateSchHuumu(d){
   var slots=getSlots();
+  var n=getHuumuCount();
+  /* 근무+휴무 전체 키 목록 */
+  var allKeys=slots.map(function(s){return s.key;});
+  for(var j=1;j<=n;j++) allKeys.push('h'+j);
+
   var vals={};
-  slots.forEach(function(s){
-    var sel=document.getElementById('sch_'+s.key+'_'+d);
-    vals[s.key]=sel?sel.value:'';
+  allKeys.forEach(function(k){
+    var sel=document.getElementById('sch_'+k+'_'+d);
+    vals[k]=sel?sel.value:'';
   });
 
   /* 중복 방지 */
   var seen={};
-  slots.forEach(function(s){
-    var v=vals[s.key];
+  allKeys.forEach(function(k){
+    var v=vals[k];
     if(v && seen[v]){
       showToast('같은 인원을 중복 배정할 수 없습니다');
-      var sel=document.getElementById('sch_'+s.key+'_'+d);
+      var sel=document.getElementById('sch_'+k+'_'+d);
       if(sel) sel.value='';
-      vals[s.key]='';
+      vals[k]='';
     }
-    if(vals[s.key]) seen[vals[s.key]]=true;
+    if(vals[k]) seen[vals[k]]=true;
   });
 
   /* 상대 드롭다운 비활성화 */
-  slots.forEach(function(s){
-    var sel=document.getElementById('sch_'+s.key+'_'+d);
+  allKeys.forEach(function(k){
+    var sel=document.getElementById('sch_'+k+'_'+d);
     if(!sel) return;
-    var others=slots.filter(function(o){ return o.key!==s.key; }).map(function(o){ return vals[o.key]; });
+    var others=allKeys.filter(function(o){return o!==k;}).map(function(o){return vals[o];});
     Array.from(sel.options).forEach(function(opt){
       opt.disabled=!!(opt.value && others.indexOf(opt.value)!==-1);
     });
   });
-
-  var assigned=slots.map(function(s){ return vals[s.key]; }).filter(Boolean);
-  var huumu=INSPECTORS.filter(function(n){ return assigned.indexOf(n)===-1; }).join(', ');
-  var cell=document.getElementById('sch_hm_'+d);
-  if(cell) cell.textContent=huumu;
 }
 
 function collectSchData(m){
-  var slots=getSlots(), days=DAYS_IN[m]||31, data={};
+  var slots=getSlots(), n=getHuumuCount(), days=DAYS_IN[m]||31, data={};
   for(var d=1;d<=days;d++){
     data[d]={};
     slots.forEach(function(s){
@@ -1315,6 +1336,10 @@ function collectSchData(m){
         leave:btn?btn.classList.contains('active'):false
       };
     });
+    for(var j=1;j<=n;j++){
+      var sel=document.getElementById('sch_h'+j+'_'+d);
+      data[d]['h'+j]={worker:sel?sel.value:''};
+    }
   }
   return data;
 }
@@ -1332,6 +1357,7 @@ async function downloadScheduleExcel(){
   var days=DAYS_IN[m]||31;
   var slots=getSlots();
   var n=slots.length; /* 슬롯 수 */
+  var hn=getHuumuCount(); /* 휴무 칸 수 */
 
   /* 열 인덱스: A=0,B=1,C=2... */
   function colL(i){ return String.fromCharCode(65+i); }
@@ -1387,8 +1413,9 @@ async function downloadScheduleExcel(){
     var weekend=schIsWeekend(m,d);
     var holiday=schIsHoliday(m,d);
     var hdName=schHolidayName(m,d);
-    var assigned=slots.map(function(s){ return r[s.key].worker; }).filter(Boolean);
-    var huumu=INSPECTORS.filter(function(n2){ return assigned.indexOf(n2)===-1; }).join(', ');
+    var huumuWorkers=[];
+    for(var jj=1;jj<=hn;jj++){ var hw=(r['h'+jj]||{}).worker; if(hw) huumuWorkers.push(hw); }
+    var huumu=huumuWorkers.join(', ');
 
     var bgArgb=(weekend||holiday)?'FFFFFDE7':'FFFFFFFF';
     var BG={type:'pattern',pattern:'solid',fgColor:{argb:bgArgb}};
