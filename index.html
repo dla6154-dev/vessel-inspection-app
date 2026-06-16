@@ -1078,13 +1078,13 @@ function schStKey(m){ return centerPrefix()+'vis_sch_2026_'+m; }
 /* 센터별 근무 슬롯 정의 */
 var SCH_SLOTS = {
   jindo: [
-    {key:'a', label:'A (05:00이전)', leave:false},
-    {key:'b', label:'B (10:30이전)', leave:true}
+    {key:'a', label:'A (05:00이전)', time:'05:00~13:30', leave:false},
+    {key:'b', label:'B (10:30이전)', time:'10:30~19:30', leave:true}
   ],
   namgang: [
-    {key:'a', label:'A (05:30이전)', leave:false},
-    {key:'b', label:'B (14:00이전)', leave:true},
-    {key:'c', label:'C (09:00~18:00)', leave:true}
+    {key:'a', label:'A (05:30이전)', time:'05:30~14:15', leave:false},
+    {key:'b', label:'B (14:00이전)', time:'14:00~22:00', leave:true},
+    {key:'c', label:'C (09:00~18:00)', time:'09:00~18:00', leave:true}
   ]
 };
 function getSlots(){ return SCH_SLOTS[CENTER] || SCH_SLOTS.jindo; }
@@ -1544,9 +1544,9 @@ function addCalendarSheet(wb, m, data, slots, hn){
       if(sv.worker) activeSlots.push({s:s, worker:sv.worker});
     });
 
-    /* 행 높이: 날짜줄(1) + 채워진 슬롯 수 */
+    /* 행 높이: 날짜줄(1) + 슬롯당 2줄(시간+이름) */
     var exRow=ws.getRow(rowBase+wk);
-    var neededLines=1+activeSlots.length;
+    var neededLines=1+activeSlots.length*2;
     var newH=neededLines*rowHeightPerLine+4;
     if(!exRow.height || exRow.height < newH) exRow.height=newH;
 
@@ -1560,12 +1560,17 @@ function addCalendarSheet(wb, m, data, slots, hn){
       {text:d+'일\n', font:{bold:true,size:11,name:'맑은 고딕',color:{argb:dateColor}}}
     ];
     activeSlots.forEach(function(item, idx){
-      var slotLabel=item.s.label.replace(/\s*\(.*\)/,''); /* A / B / C */
+      var slotKey=item.s.label.replace(/\s*\(.*\)/,''); /* A / B / C */
+      var timeStr=item.s.time ? ' ('+item.s.time+')' : '';
       var color=SLOT_COLORS[idx % SLOT_COLORS.length];
       var isLast=(idx===activeSlots.length-1);
       richParts.push({
-        text: slotLabel+' '+item.worker+(isLast?'':'\n'),
-        font:{bold:true,size:10,name:'맑은 고딕',color:{argb:color}}
+        text: slotKey+timeStr+'\n',
+        font:{size:9,name:'맑은 고딕',color:{argb:color}}
+      });
+      richParts.push({
+        text: item.worker+(isLast?'':'\n'),
+        font:{bold:true,size:11,name:'맑은 고딕',color:{argb:color}}
       });
     });
     cell.value={richText:richParts};
