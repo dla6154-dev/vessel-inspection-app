@@ -400,16 +400,20 @@ async function cloudUpsert(key, payload){
   } catch(e){ return false; }
 }
 
-async function cloudFetch(key){
+async function cloudFetch(key, timeoutMs){
+  timeoutMs = timeoutMs || 8000;
+  var ctrl = new AbortController();
+  var timer = setTimeout(function(){ ctrl.abort(); }, timeoutMs);
   try{
     var res = await fetch(
       SB_URL+'/rest/v1/vessel_inspection_sync?key=eq.'+encodeURIComponent(key)+'&select=payload,updated_at',
-      {headers: SB_HDR}
+      {headers: SB_HDR, signal: ctrl.signal}
     );
+    clearTimeout(timer);
     if(!res.ok) return null;
     var rows = await res.json();
     return rows[0] || null;
-  } catch(e){ return null; }
+  } catch(e){ clearTimeout(timer); return null; }
 }
 
 function setSyncStatus(state, isoTime){
@@ -1031,15 +1035,17 @@ async function initSync(){
   rebuildThead();
   renderTable(curMonth); /* 로컬 데이터 즉시 표시 */
   setSyncStatus('syncing');
-  /* 설정(선명·인원) 클라우드에서 로드 */
-  var cfgRow = await cloudFetch(centerPrefix()+'vis_config');
+  /* 설정 + 데이터 병렬 로드 */
+  var results = await Promise.all([
+    cloudFetch(centerPrefix()+'vis_config'),
+    cloudFetch(stKey(curMonth))
+  ]);
+  var cfgRow = results[0], dataRow = results[1];
   if(cfgRow && cfgRow.payload){
     var cfg = cfgRow.payload;
     if(cfg.ships){ SHIPS=cfg.ships; saveShips(SHIPS); rebuildColgroup(); rebuildThead(); }
     if(cfg.inspectors){ INSPECTORS=cfg.inspectors; saveInspectors(INSPECTORS); }
   }
-  /* 현재 월 데이터 클라우드에서 로드 */
-  var dataRow = await cloudFetch(stKey(curMonth));
   if(dataRow){
     localStorage.setItem(stKey(curMonth), JSON.stringify(dataRow.payload));
     renderTable(curMonth);
@@ -1126,50 +1132,61 @@ var HOLIDAYS = {}; /* { 'M-D': '공휴일명' } */
 var HOLIDAY_API_KEY = '4063f2c2047eaf451ca47bba11369c953e228d145a62d2be87ad7af1d0f3960f';
 
 async function loadHolidays(year){
-  /* 기존 localStorage 캐시 삭제 */
-  for(var y=2025;y<=2030;y++) localStorage.removeItem('holidays_'+y);
-
+  var lsKey = 'hd_cache_' + year;
   var sbKey = 'holidays_' + year;
-  var needFetch = true;
 
-  /* Supabase에서 기존 데이터 확인 */
+  /* 1) localStorage 빠른 캐시 (24시간) — 즉시 렌더 */
+  try{
+    var lsRaw = localStorage.getItem(lsKey);
+    if(lsRaw){
+      var lsObj = JSON.parse(lsRaw);
+      if(lsObj.map && Date.now() - lsObj.ts < 24*60*60*1000){
+        HOLIDAYS = lsObj.map;
+        if(typeof renderSchedule === 'function') renderSchedule(schMonth);
+        return; /* 캐시 유효 → 바로 종료 */
+      }
+    }
+  }catch(e){}
+
+  /* 2) Supabase 캐시 확인 (30일) */
   var row = await cloudFetch(sbKey);
   if(row && row.payload && row.payload.map && row.payload.fetchedAt){
     var age = Date.now() - new Date(row.payload.fetchedAt).getTime();
-    if(age < 30 * 24 * 60 * 60 * 1000){ /* 30일 이내 */
+    if(age < 30 * 24 * 60 * 60 * 1000){
       HOLIDAYS = row.payload.map;
-      needFetch = false;
+      try{ localStorage.setItem(lsKey, JSON.stringify({map:HOLIDAYS, ts:Date.now()})); }catch(e){}
+      if(typeof renderSchedule === 'function') renderSchedule(schMonth);
+      return;
     }
   }
 
-  if(needFetch){
-    try{
-      var url = 'https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo'
-        + '?serviceKey=' + HOLIDAY_API_KEY
-        + '&solYear=' + year + '&numOfRows=50';
-      var res = await fetch(url);
-      var text = await res.text();
-      var xml = new DOMParser().parseFromString(text, 'text/xml');
-      var map = {};
-      xml.querySelectorAll('item').forEach(function(item){
-        var locdate = item.querySelector('locdate').textContent;
-        var name = item.querySelector('dateName').textContent;
-        var m = parseInt(locdate.substring(4,6));
-        var d = parseInt(locdate.substring(6,8));
-        map[m+'-'+d] = name;
-      });
-      if(Object.keys(map).length > 0){
-        HOLIDAYS = map;
-        await cloudUpsert(sbKey, { map: map, fetchedAt: new Date().toISOString() });
-      } else {
-        throw new Error('empty');
-      }
-    }catch(e){
-      /* API·네트워크 실패 시 Supabase 구데이터라도 사용 */
-      if(row && row.payload && row.payload.map){
-        HOLIDAYS = row.payload.map;
-      }
+  /* 3) 외부 API 호출 (5초 타임아웃) */
+  try{
+    var ctrl = new AbortController();
+    var timer = setTimeout(function(){ ctrl.abort(); }, 5000);
+    var url = 'https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo'
+      + '?serviceKey=' + HOLIDAY_API_KEY
+      + '&solYear=' + year + '&numOfRows=50';
+    var res = await fetch(url, {signal: ctrl.signal});
+    clearTimeout(timer);
+    var text = await res.text();
+    var xml = new DOMParser().parseFromString(text, 'text/xml');
+    var map = {};
+    xml.querySelectorAll('item').forEach(function(item){
+      var locdate = item.querySelector('locdate').textContent;
+      var name = item.querySelector('dateName').textContent;
+      var mo = parseInt(locdate.substring(4,6));
+      var dy = parseInt(locdate.substring(6,8));
+      map[mo+'-'+dy] = name;
+    });
+    if(Object.keys(map).length > 0){
+      HOLIDAYS = map;
+      try{ localStorage.setItem(lsKey, JSON.stringify({map:map, ts:Date.now()})); }catch(e){}
+      cloudUpsert(sbKey, {map:map, fetchedAt:new Date().toISOString()});
     }
+  }catch(e){
+    /* 타임아웃·실패 시 Supabase 구데이터 사용 */
+    if(row && row.payload && row.payload.map) HOLIDAYS = row.payload.map;
   }
 
   if(typeof renderSchedule === 'function') renderSchedule(schMonth);
