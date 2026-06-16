@@ -961,63 +961,256 @@ function loadFromFile(e){
 }
 
 /* ── Excel ── */
-function downloadExcel(){
+async function downloadExcel(){
   saveData();
   var m=curMonth, data=loadData(m), days=DAYS_IN[m]||31;
   var sn=shipNames();
-  var wsData=[[m+'월 여객선 출항전 점검 실시 횟수']];
-  wsData.push(['날짜'].concat(sn,['점검횟수','보고서유','점검자','조출자','비고']));
 
+  /* 점검자별 집계 */
   var insMap={};
   for(var d=1;d<=days;d++){
     ['a','b'].forEach(function(side){
       var r=data[d][side];
-      var shipVals={};
-      sn.forEach(function(s){ shipVals[s]=parseInt(r.ships[s])||0; });
-      var tot=sn.reduce(function(s,k){return s+shipVals[k];},0);
+      var tot=sn.reduce(function(s,k){return s+(parseInt(r.ships[k])||0);},0);
       var bog=parseInt(r.bogo)||0;
       var ins=r.inspector||'', cho=r.chulcha||'';
       if(ins){
         if(!insMap[ins]) insMap[ins]={total:0,bogo:0,chulcha:0};
-        insMap[ins].total+=tot;
-        insMap[ins].bogo+=bog;
+        insMap[ins].total+=tot; insMap[ins].bogo+=bog;
         if(cho===ins) insMap[ins].chulcha++;
       }
-      var row=[side==='a'?d:''];
-      sn.forEach(function(s){ row.push(shipVals[s]||''); });
-      row.push(tot,bog||'',ins,cho,r.note||'');
-      wsData.push(row);
     });
   }
 
-  wsData.push([]);
-  var sumRow=['합계'];
+  /* 선박별 월합계 */
+  var shipTotal={};
   sn.forEach(function(s){
     var t=0;
     for(var d=1;d<=days;d++) ['a','b'].forEach(function(side){ t+=parseInt(data[d][side].ships[s])||0; });
-    sumRow.push(t);
+    shipTotal[s]=t;
   });
   var gT=0,gB=0;
-  for(var k in insMap){gT+=insMap[k].total;gB+=insMap[k].bogo;}
-  sumRow.push(gT,gB,'','','');
-  wsData.push(sumRow);
-  wsData.push([]);
+  for(var k in insMap){gT+=insMap[k].total; gB+=insMap[k].bogo;}
 
+  /* ExcelJS */
+  var wb=new ExcelJS.Workbook();
+  var ws=wb.addWorksheet(m+'월');
+
+  var FONT='맑은 고딕';
+  var THIN={style:'thin',color:{argb:'FFCCCCCC'}};
+  var MED={style:'medium',color:{argb:'FF888888'}};
+  var BORD_ALL={top:THIN,bottom:THIN,left:THIN,right:THIN};
+  var BORD_MED={top:MED,bottom:MED,left:MED,right:MED};
+  var ALIGN_C={horizontal:'center',vertical:'middle'};
+  var ALIGN_L={horizontal:'left',vertical:'middle'};
+
+  /* 열 너비 */
+  var cols=[{width:7},{width:5}]; /* 날짜, A/B */
+  sn.forEach(function(){ cols.push({width:11}); });
+  cols.push({width:9},{width:9},{width:10},{width:10},{width:28});
+  ws.columns=cols;
+
+  var totalCols=2+sn.length+5; /* 날짜+AB+선박들+점검횟수+보고서유+점검자+조출자+비고 */
+  function colL(i){ return String.fromCharCode(64+(i+1)); } /* 1-based → A,B,C... */
+  var lastCol=colL(totalCols);
+
+  /* 행1: 제목 */
+  ws.mergeCells('A1:'+lastCol+'1');
+  var t=ws.getCell('A1');
+  t.value=SCH_YEAR+'년 '+m+'월 여객선 출항전 점검 실시 횟수 ('+centerLabel()+')';
+  t.font={bold:true,size:13,name:FONT,color:{argb:'FFFFFFFF'}};
+  t.alignment=ALIGN_C;
+  t.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF2C3E50'}};
+  ws.getRow(1).height=26;
+
+  /* 행2: 헤더 */
+  var HDR_FILL={type:'pattern',pattern:'solid',fgColor:{argb:'FF4472C4'}};
+  var HDR_FONT={bold:true,size:10,name:FONT,color:{argb:'FFFFFFFF'}};
+  var hdr=['날짜','구분'].concat(sn,['점검\n횟수','보고서\n유','점검자','조출자','비고']);
+  hdr.forEach(function(v,i){
+    var c=ws.getRow(2).getCell(i+1);
+    c.value=v; c.font=HDR_FONT; c.alignment={horizontal:'center',vertical:'middle',wrapText:true};
+    c.fill=HDR_FILL; c.border=BORD_ALL;
+  });
+  ws.getRow(2).height=32;
+
+  /* 데이터 행 */
+  var DOW_KR=['일','월','화','수','목','금','토'];
+  for(var d=1;d<=days;d++){
+    var dow=new Date(SCH_YEAR,m-1,d).getDay();
+    var isWE=schIsWeekend(m,d)||schIsHoliday(m,d);
+    var rowBg=isWE?'FFFFFDE7':'FFFFFFFF';
+    var dateFg=isWE?'FFCC0000':'FF222222';
+
+    ['a','b'].forEach(function(side, si){
+      var r=data[d][side];
+      var rowIdx=2+(d-1)*2+si+1; /* 엑셀 행 번호 */
+      var exRow=ws.getRow(rowIdx);
+      exRow.height=16;
+
+      /* 날짜 (A열) — a행에만, b행은 병합 */
+      var dateCell=exRow.getCell(1);
+      if(side==='a'){
+        dateCell.value=d+'('+DOW_KR[dow]+')';
+        dateCell.font={bold:isWE,size:9,name:FONT,color:{argb:dateFg}};
+      }
+      dateCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowBg}};
+      dateCell.alignment=ALIGN_C; dateCell.border=BORD_ALL;
+
+      /* 구분 (B열) */
+      var abCell=exRow.getCell(2);
+      abCell.value=side.toUpperCase();
+      abCell.font={size:9,name:FONT,bold:true,color:{argb:'FF555555'}};
+      abCell.alignment=ALIGN_C;
+      abCell.fill={type:'pattern',pattern:'solid',
+        fgColor:{argb:side==='a'?'FFEEF4FB':'FFF0FBF0'}};
+      abCell.border=BORD_ALL;
+
+      /* 선박별 횟수 */
+      sn.forEach(function(s,si2){
+        var v=parseInt(r.ships[s])||0;
+        var c=exRow.getCell(3+si2);
+        c.value=v||'';
+        c.font={size:10,name:FONT,bold:!!v,color:{argb:v?'FF1A5276':'FFAAAAAA'}};
+        c.alignment=ALIGN_C;
+        c.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowBg}};
+        c.border=BORD_ALL;
+      });
+
+      var tot=sn.reduce(function(s,k){return s+(parseInt(r.ships[k])||0);},0);
+      var bog=parseInt(r.bogo)||0;
+      var base=2+sn.length;
+
+      /* 점검횟수 합계 */
+      var tc=exRow.getCell(base+1);
+      tc.value=tot||''; tc.alignment=ALIGN_C;
+      tc.font={bold:true,size:10,name:FONT,color:{argb:tot?'FF154360':'FFAAAAAA'}};
+      tc.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE8F4FD'}};
+      tc.border=BORD_ALL;
+
+      /* 보고서유 */
+      var bc=exRow.getCell(base+2);
+      bc.value=bog||''; bc.alignment=ALIGN_C;
+      bc.font={size:10,name:FONT}; bc.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowBg}};
+      bc.border=BORD_ALL;
+
+      /* 점검자 */
+      var ic=exRow.getCell(base+3);
+      ic.value=r.inspector||''; ic.alignment=ALIGN_C;
+      ic.font={size:10,name:FONT}; ic.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowBg}};
+      ic.border=BORD_ALL;
+
+      /* 조출자 */
+      var cc=exRow.getCell(base+4);
+      cc.value=r.chulcha||''; cc.alignment=ALIGN_C;
+      cc.font={size:10,name:FONT}; cc.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowBg}};
+      cc.border=BORD_ALL;
+
+      /* 비고 */
+      var nc=exRow.getCell(base+5);
+      nc.value=r.note||''; nc.alignment=ALIGN_L;
+      nc.font={size:9,name:FONT}; nc.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowBg}};
+      nc.border=BORD_ALL;
+    });
+
+    /* 날짜 셀 세로 병합 (a+b행) */
+    var r1=2+(d-1)*2+1, r2=r1+1;
+    try{ ws.mergeCells('A'+r1+':A'+r2); }catch(e){}
+  }
+
+  /* 빈 행 */
+  var sepRow=2+days*2+1;
+  ws.getRow(sepRow).height=6;
+
+  /* 선박별 월합계 행 */
+  var sumRow=sepRow+1;
+  ws.mergeCells('A'+sumRow+':B'+sumRow);
+  var sc=ws.getCell('A'+sumRow);
+  sc.value='선박별 월 합계'; sc.alignment=ALIGN_C;
+  sc.font={bold:true,size:10,name:FONT,color:{argb:'FFFFFFFF'}};
+  sc.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A5276'}};
+  sc.border=BORD_MED;
+  ws.getRow(sumRow).height=20;
+
+  sn.forEach(function(s,i){
+    var c=ws.getRow(sumRow).getCell(3+i);
+    c.value=shipTotal[s];
+    c.font={bold:true,size:11,name:FONT,color:{argb:'FF1A5276'}};
+    c.alignment=ALIGN_C;
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD6EAF8'}};
+    c.border=BORD_MED;
+  });
+  /* 합계 열: 총 점검횟수 */
+  var base2=2+sn.length;
+  var totCell=ws.getRow(sumRow).getCell(base2+1);
+  totCell.value=gT; totCell.alignment=ALIGN_C;
+  totCell.font={bold:true,size:11,name:FONT,color:{argb:'FF154360'}};
+  totCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD6EAF8'}};
+  totCell.border=BORD_MED;
+  var bogCell=ws.getRow(sumRow).getCell(base2+2);
+  bogCell.value=gB; bogCell.alignment=ALIGN_C;
+  bogCell.font={bold:true,size:11,name:FONT};
+  bogCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD6EAF8'}};
+  bogCell.border=BORD_MED;
+  /* 나머지 셀 */
+  [base2+3,base2+4,base2+5].forEach(function(ci){
+    var c=ws.getRow(sumRow).getCell(ci);
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD6EAF8'}};
+    c.border=BORD_MED;
+  });
+
+  /* 점검자별 통계 */
   var ik=Object.keys(insMap);
-  wsData.push(['점검자'].concat(ik,['종합']));
-  wsData.push(['출항전점검횟수'].concat(ik.map(function(k){return insMap[k].total;}),[gT]));
-  wsData.push(['보고서유횟수'].concat(ik.map(function(k){return insMap[k].bogo;}),[gB]));
-  var totalCho=ik.reduce(function(s,k){return s+insMap[k].chulcha;},0);
-  wsData.push(['조출횟수'].concat(ik.map(function(k){return insMap[k].chulcha;}),[totalCho]));
+  var statStart=sumRow+2;
+  var statHdr=['점검자'].concat(ik,['종합']);
+  var statRows=[
+    ['출항전 점검횟수'].concat(ik.map(function(k){return insMap[k].total;}),[gT]),
+    ['보고서 유 횟수'].concat(ik.map(function(k){return insMap[k].bogo;}),[gB]),
+    ['조출 횟수'].concat(ik.map(function(k){return insMap[k].chulcha;}),
+      [ik.reduce(function(s,k){return s+insMap[k].chulcha;},0)])
+  ];
+  var statCols=statHdr.length;
 
-  var wb=XLSX.utils.book_new();
-  var ws=XLSX.utils.aoa_to_sheet(wsData);
-  var cols=[{wch:6}];
-  sn.forEach(function(){cols.push({wch:10});});
-  cols.push({wch:8},{wch:8},{wch:9},{wch:9},{wch:30});
-  ws['!cols']=cols;
-  XLSX.utils.book_append_sheet(wb,ws,m+'월');
-  XLSX.writeFile(wb,'2026년_출항전점검횟수_'+centerLabel()+'사무소_'+m+'월.xlsx');
+  /* 통계 제목 */
+  ws.mergeCells('A'+(statStart-1)+':'+colL(statCols)+(statStart-1));
+  var stTitle=ws.getCell('A'+(statStart-1));
+  stTitle.value='점검자별 통계';
+  stTitle.font={bold:true,size:11,name:FONT,color:{argb:'FFFFFFFF'}};
+  stTitle.alignment=ALIGN_C;
+  stTitle.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF27AE60'}};
+  ws.getRow(statStart-1).height=18;
+
+  statHdr.forEach(function(v,i){
+    var isLast=(i===statHdr.length-1);
+    var c=ws.getRow(statStart).getCell(i+1);
+    c.value=v; c.font={bold:true,size:10,name:FONT,color:{argb:'FFFFFFFF'}};
+    c.alignment=ALIGN_C;
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:isLast?'FF1E8449':'FF27AE60'}};
+    c.border=BORD_ALL;
+  });
+  ws.getRow(statStart).height=18;
+
+  var STAT_BG=['FFF9FBF9','FFF2FAF2'];
+  statRows.forEach(function(row,ri){
+    var exRow2=ws.getRow(statStart+1+ri);
+    exRow2.height=16;
+    row.forEach(function(v,ci){
+      var isLast=(ci===row.length-1);
+      var c=exRow2.getCell(ci+1);
+      c.value=v;
+      c.alignment=ci===0?ALIGN_L:ALIGN_C;
+      c.font={size:10,name:FONT,bold:isLast};
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:STAT_BG[ri%2]}};
+      c.border=BORD_ALL;
+    });
+  });
+
+  var buf=await wb.xlsx.writeBuffer();
+  var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=SCH_YEAR+'년_출항전점검횟수_'+centerLabel()+'사무소_'+m+'월.xlsx';
+  a.click();
   showToast('엑셀 다운로드 완료');
 }
 
