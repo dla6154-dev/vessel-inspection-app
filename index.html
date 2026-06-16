@@ -1083,9 +1083,8 @@ var SCH_SLOTS = {
 };
 function getSlots(){ return SCH_SLOTS[CENTER] || SCH_SLOTS.jindo; }
 
-/* 센터별 휴무 선택 칸 수 */
-var SCH_HUUMU_COUNT = { jindo:2, namgang:1 };
-function getHuumuCount(){ return SCH_HUUMU_COUNT[CENTER] || 1; }
+/* 휴무 칸 수 = 전체 인원 수 */
+function getHuumuCount(){ return Math.max(1, INSPECTORS.length); }
 
 function buildSchTable(){
   var slots = getSlots();
@@ -1207,17 +1206,16 @@ async function changeSchMonth(m){
 
 function schHuumuCellHtml(d,row){
   var n=getHuumuCount();
-  var html='<td style="padding:2px 4px;vertical-align:middle">';
+  var html='<td style="padding:2px 4px;vertical-align:middle"><div style="display:flex;gap:4px;flex-wrap:nowrap">';
   for(var j=1;j<=n;j++){
     var key='h'+j;
     var val=row[key]||{worker:''};
     var opts=INSPECTORS.map(function(nm){
       return '<option value="'+escHtml(nm)+'"'+(val.worker===nm?' selected':'')+'>'+escHtml(nm)+'</option>';
     }).join('');
-    if(j>1) html+='<div style="height:3px"></div>';
-    html+='<div class="sch-cell"><select class="sch-worker-sel" id="sch_'+key+'_'+d+'" onchange="updateSchHuumu('+d+')" style="background:#f0ede6"><option value=""></option>'+opts+'</select></div>';
+    html+='<select class="sch-worker-sel" id="sch_'+key+'_'+d+'" onchange="updateSchHuumu('+d+')" style="background:#f0ede6;flex:1;min-width:50px"><option value=""></option>'+opts+'</select>';
   }
-  html+='</td>';
+  html+='</div></td>';
   return html;
 }
 
