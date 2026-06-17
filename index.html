@@ -113,8 +113,8 @@ input.num-cell.zero{color:var(--text3)}
 select.ins-sel{width:100%;height:28px;padding:0 4px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--text);font-family:var(--sans);font-size:11px;cursor:pointer;transition:border-color .12s,background .12s}
 select.ins-sel:hover,select.ins-sel:focus{border-color:var(--border2);background:rgba(255,255,255,.8);outline:none}
 
-input.note-in{width:100%;height:28px;padding:0 6px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--text2);font-size:11px;transition:all .12s}
-input.note-in:hover,input.note-in:focus{border-color:var(--border2);background:rgba(255,255,255,.8);color:var(--text);outline:none}
+textarea.note-in{display:block;width:100%;min-height:28px;padding:4px 6px;border:1px solid transparent;border-radius:4px;box-sizing:border-box;background:transparent;color:var(--text2);font-size:11px;line-height:1.35;resize:vertical;overflow-y:hidden;transition:all .12s}
+textarea.note-in:hover,textarea.note-in:focus{border-color:var(--border2);background:rgba(255,255,255,.8);color:var(--text);outline:none}
 
 .chip-total{display:inline-block;background:var(--accent);color:#fff;border-radius:100px;padding:1px 9px;font-family:var(--mono);font-size:12px;font-weight:500;min-width:28px}
 .chip-total.zero{background:var(--border2);color:var(--text3)}
@@ -770,6 +770,17 @@ function renderTable(m){
 
       tr.innerHTML=html;
       tbody.appendChild(tr);
+
+      var noteInput=tr.querySelector('.note-in');
+      if(noteInput){
+        var noteArea=document.createElement('textarea');
+        noteArea.className=noteInput.className;
+        noteArea.id=noteInput.id;
+        noteArea.placeholder=noteInput.placeholder;
+        noteArea.value=r.note||'';
+        noteInput.replaceWith(noteArea);
+        autosizeNote(noteArea);
+      }
     });
   }
 
@@ -781,6 +792,8 @@ function renderTable(m){
       el.classList.toggle('zero',!el.value);
       if(!el.dataset.isbog) updateTotals(el.dataset.day, el.dataset.side);
       renderSummaryLive();
+    } else if(el.classList.contains('note-in')){
+      autosizeNote(el);
     }
   };
   tbody.onchange = function(e){
@@ -858,6 +871,12 @@ function updateTotals(day,side){
 
 function escHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function autosizeNote(el){
+  if(!el) return;
+  el.style.height='auto';
+  el.style.height=Math.max(28, el.scrollHeight)+'px';
 }
 
 /* ── summary ── */
@@ -1113,9 +1132,11 @@ async function downloadExcel(){
       nc.font={size:9,name:FONT}; nc.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowBg}};
       nc.border=BORD_ALL;
       /* 내용 길이에 따라 행 높이 자동 조절 (42자 기준 줄바꿈) */
-      if(noteVal.length>42){
-        var lines=Math.ceil(noteVal.length/42);
-        var newH=Math.max(exRow.height||16, lines*14+4);
+      var noteVisualLines=String(noteVal).split(/\r?\n/).reduce(function(sum,line){
+        return sum + Math.max(1, Math.ceil(line.length/42));
+      },0);
+      if(noteVisualLines>1){
+        var newH=Math.max(exRow.height||16, noteVisualLines*14+4);
         exRow.height=newH;
       }
     });
