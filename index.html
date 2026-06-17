@@ -1046,7 +1046,6 @@ async function downloadExcel(){
       var r=data[d][side];
       var rowIdx=2+(d-1)*2+si+1; /* 엑셀 행 번호 */
       var exRow=ws.getRow(rowIdx);
-      exRow.height=16;
 
       /* 날짜 (A열) — a행에만, b행은 병합 */
       var dateCell=exRow.getCell(1);
