@@ -188,6 +188,8 @@ table.sch-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:680px
 .sch-leave-btn:hover{background:var(--amber-light);border-color:#e0c97a;color:var(--amber)}
 .sch-leave-btn.active{background:var(--amber-light);border-color:#e0c97a;color:var(--amber);font-style:italic;font-weight:700}
 td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:#fff8e8;border-color:#e0c97a}
+.sch-note-cell{min-width:220px;padding:4px 6px;text-align:left!important;vertical-align:top!important}
+.sch-note-in{min-height:40px;background:rgba(255,255,255,.9);color:var(--text);font-size:11px}
 .sch-휴무{font-size:11px;color:var(--text3);text-align:left!important;padding-left:10px!important}
 .sch-day-num{font-family:var(--mono);font-weight:500;color:var(--text2);font-size:12px}
 
@@ -1322,10 +1324,12 @@ function buildSchTable(){
   var cgHtml = '<col style="width:46px"><col style="width:44px">';
   slots.forEach(function(){ cgHtml += '<col style="width:160px">'; });
   for(var j=0;j<n;j++) cgHtml += '<col style="width:160px">';
+  cgHtml += '<col style="width:240px">';
   cg.innerHTML = cgHtml;
   var thHtml = '<tr><th rowspan="2">날짜</th><th rowspan="2">요일</th>';
   thHtml += '<th colspan="'+slots.length+'" style="border-bottom:1px solid var(--border2)">'+centerLabel()+'</th>';
   thHtml += '<th colspan="'+n+'" rowspan="2">휴무</th>';
+  thHtml += '<th rowspan="2">비고</th>';
   thHtml += '</tr><tr>';
   slots.forEach(function(s){ thHtml += '<th>'+s.label+'</th>'; });
   thHtml += '</tr>';
@@ -1335,7 +1339,7 @@ function buildSchTable(){
 function defaultSchData(m){
   var slots=getSlots(), n=getHuumuCount(), days=DAYS_IN[m]||31, d={};
   for(var i=1;i<=days;i++){
-    d[i]={};
+    d[i]={note:''};
     slots.forEach(function(s){ d[i][s.key]={worker:'',leave:false}; });
     for(var j=1;j<=n;j++) d[i]['h'+j]={worker:''};
   }
@@ -1476,6 +1480,10 @@ function schCellHtml(slot,d,val,hasLeave){
     '</div></td>';
 }
 
+function schNoteCellHtml(d,note){
+  return '<td class="sch-note-cell"><textarea class="note-in sch-note-in" id="sch_note_'+d+'" placeholder="근무 비고..." oninput="autosizeNote(this)">'+escHtml(note||'')+'</textarea></td>';
+}
+
 function renderSchedule(m){
   buildSchTable();
   var slots=getSlots();
@@ -1488,6 +1496,7 @@ function renderSchedule(m){
   for(var d=1;d<=days;d++){
     var row=data[d]||{};
     slots.forEach(function(s){ if(!row[s.key]) row[s.key]={worker:'',leave:false}; });
+    if(typeof row.note!=='string') row.note=row.note?String(row.note):'';
     var tr=document.createElement('tr');
     var weekend=schIsWeekend(m,d);
     var sat=schIsSat(m,d);
@@ -1507,12 +1516,14 @@ function renderSchedule(m){
     var cellsHtml='';
     slots.forEach(function(s){ cellsHtml+=schCellHtml(s.key,d,row[s.key],s.leave); });
     cellsHtml+=schHuumuCellHtml(d,row);
+    cellsHtml+=schNoteCellHtml(d,row.note);
 
     tr.innerHTML=
       '<td class="sch-day-num">'+d+'</td>'+
       dowCell+cellsHtml;
 
     tbody.appendChild(tr);
+    autosizeNote(tr.querySelector('.sch-note-in'));
   }
 }
 
@@ -1579,6 +1590,8 @@ function collectSchData(m){
       var sel=document.getElementById('sch_h'+j+'_'+d);
       data[d]['h'+j]={worker:sel?sel.value:''};
     }
+    var noteEl=document.getElementById('sch_note_'+d);
+    data[d].note=noteEl?noteEl.value:'';
   }
   return data;
 }
@@ -1601,7 +1614,8 @@ async function downloadScheduleExcel(){
   /* 열 인덱스: A=0,B=1,C=2... */
   function colL(i){ return String.fromCharCode(65+i); }
   /* 날짜=A(0), 요일=B(1), 슬롯=C~(2..2+n-1), 휴무=C(2+n)~(2+n+hn-1) */
-  var lastCol=colL(2+n+hn-1);
+  var noteCol=colL(2+n+hn);
+  var lastCol=noteCol;
 
   var wb=new ExcelJS.Workbook();
   var ws=wb.addWorksheet(m+'월 근무표');
@@ -1609,6 +1623,7 @@ async function downloadScheduleExcel(){
   var wsCols=[{width:7},{width:10}];
   slots.forEach(function(){ wsCols.push({width:18}); });
   for(var hh=0;hh<hn;hh++) wsCols.push({width:14});
+  wsCols.push({width:32});
   ws.columns=wsCols;
 
   var HDR_FILL={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0EDE6'}};
@@ -1630,13 +1645,18 @@ async function downloadScheduleExcel(){
   if(n>1) ws.mergeCells('C2:'+colL(2+n-1)+'2');
   /* 휴무 헤더: 행2~행3 머지, hn개 열 */
   var huumuStart=colL(2+n);
-  if(hn>1) ws.mergeCells(huumuStart+'2:'+lastCol+'3');
+  var huumuEnd=colL(2+n+hn-1);
+  if(hn>1) ws.mergeCells(huumuStart+'2:'+huumuEnd+'3');
   else ws.mergeCells(huumuStart+'2:'+huumuStart+'3');
+  ws.mergeCells(noteCol+'2:'+noteCol+'3');
 
   [['A2','날짜'],['B2','요일'],['C2',centerLabel()],[huumuStart+'2','휴무']].forEach(function(pair){
     var c=ws.getCell(pair[0]); c.value=pair[1];
     c.font=HDR_FONT; c.alignment=ALIGN; c.fill=HDR_FILL; c.border=BORDER;
   });
+  var noteHdr=ws.getCell(noteCol+'2');
+  noteHdr.value='비고';
+  noteHdr.font=HDR_FONT; noteHdr.alignment=ALIGN; noteHdr.fill=HDR_FILL; noteHdr.border=BORDER;
   ws.getRow(2).height=20;
 
   /* 행3: 슬롯 소분류 헤더 */
@@ -1691,7 +1711,18 @@ async function downloadScheduleExcel(){
       hcell.font={size:10,name:'맑은 고딕'};
     }
 
-    ws.getRow(rowIdx).height=18;
+    var noteCell=ws.getCell(noteCol+rowIdx);
+    var noteVal=r.note||'';
+    noteCell.value=noteVal;
+    noteCell.alignment={horizontal:'left',vertical:'middle',wrapText:true};
+    noteCell.border=BORDER;
+    noteCell.fill=BG;
+    noteCell.font={size:9,name:'留묒? 怨좊뵓'};
+
+    var noteVisualLines=String(noteVal).split(/\r?\n/).reduce(function(sum,line){
+      return sum + Math.max(1, Math.ceil(line.length/28));
+    },0);
+    ws.getRow(rowIdx).height=Math.max(18, noteVisualLines*14+4);
   }
 
   /* ── 달력 시트 추가 ── */
