@@ -284,9 +284,11 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:#f
       <button class="modal-close" onclick="closeInsModal()">&#215;</button>
     </div>
     <div class="modal-body">
+      <p class="sch-modal-note" id="insMonthNote"></p>
       <ul class="ship-list" id="insList"></ul>
       <div class="add-row">
         <input class="add-inp" id="newInsName" placeholder="새 이름..." onkeydown="if(event.key==='Enter')addInspector()">
+        <label class="sch-carry-label"><input class="sch-carry-check" type="checkbox" id="newInsCarry">이월</label>
         <button class="btn-add" onclick="addInspector()">+ 추가</button>
       </div>
       <p class="hint-small">점검자·조출자 선택 목록에 나타납니다 / 드래그로 순서 변경</p>
@@ -306,11 +308,9 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:#f
       <button class="modal-close" onclick="closeSchInsModal()">&#215;</button>
     </div>
     <div class="modal-body">
-      <p class="sch-modal-note" id="schInsMonthNote"></p>
       <ul class="ship-list" id="schInsList"></ul>
       <div class="add-row">
         <input class="add-inp" id="newSchInsName" placeholder="새 이름..." onkeydown="if(event.key==='Enter')addSchInspector()">
-        <label class="sch-carry-label"><input class="sch-carry-check" type="checkbox" id="newSchInsCarry">이월</label>
         <button class="btn-add" onclick="addSchInspector()">+ 추가</button>
       </div>
       <p class="hint-small">근무·휴무 선택 목록에 나타납니다 / 드래그로 순서 변경</p>
@@ -511,15 +511,15 @@ const DEFAULT_INSPECTORS = ['차문태','김록주','정병희','임현우'];
 
 let curMonth = Math.min(new Date().getMonth() + 1, 12);
 let SHIPS = loadShips();
-let VIS_INSPECTORS = loadVisInspectors();   /* 출항전 점검횟수용 */
-let SCH_INSPECTOR_MONTHS = loadSchInspectorMonths();
-let SCH_INSPECTOR_ENTRIES = [];
-let SCH_INSPECTORS = [];
+let VIS_INSPECTOR_MONTHS = loadVisInspectorMonths();
+let VIS_INSPECTOR_ENTRIES = [];
+let VIS_INSPECTORS = [];
+let SCH_INSPECTORS = loadSchInspectors();
 let INSPECTORS = VIS_INSPECTORS;            /* 하위 호환 alias (점검횟수 탭) */
 let modalShips = [];
 let modalIns = [];
 let modalSchIns = [];
-setActiveSchInspectors(curMonth);
+setActiveVisInspectors(curMonth);
 
 /* ── inspectors storage ── */
 function loadVisInspectors(){
@@ -532,11 +532,11 @@ function loadSchInspectors(){
   return DEFAULT_INSPECTORS.slice();
 }
 function saveSchInspectors(list){ localStorage.setItem(centerPrefix()+'sch_inspectors', JSON.stringify(list)); }
-function schInspectorYear(){
+function visInspectorYear(){
   return (typeof SCH_YEAR === 'number' && SCH_YEAR) ? SCH_YEAR : new Date().getFullYear();
 }
-function schInspectorMonthKey(m){ return schInspectorYear() + '_' + pad2(m); }
-function normalizeSchInspectorEntry(entry, defaultCarry){
+function visInspectorMonthKey(m){ return visInspectorYear() + '_' + pad2(m); }
+function normalizeVisInspectorEntry(entry, defaultCarry){
   if(typeof entry === 'string'){
     var nameFromString = entry.trim();
     return nameFromString ? {name:nameFromString, carry:defaultCarry !== false} : null;
@@ -549,96 +549,101 @@ function normalizeSchInspectorEntry(entry, defaultCarry){
     carry:typeof entry.carry === 'boolean' ? entry.carry : defaultCarry !== false
   };
 }
-function normalizeSchInspectorList(list, defaultCarry){
+function normalizeVisInspectorList(list, defaultCarry){
   if(!Array.isArray(list)) return [];
   var out = [];
   var seen = {};
   list.forEach(function(entry){
-    var item = normalizeSchInspectorEntry(entry, defaultCarry);
+    var item = normalizeVisInspectorEntry(entry, defaultCarry);
     if(!item || seen[item.name]) return;
     seen[item.name] = true;
     out.push(item);
   });
   return out;
 }
-function cloneSchInspectorList(list){
-  return normalizeSchInspectorList(list).map(function(item){
+function cloneVisInspectorList(list){
+  return normalizeVisInspectorList(list).map(function(item){
     return {name:item.name, carry:!!item.carry};
   });
 }
-function normalizeSchInspectorMonthMap(map){
+function normalizeVisInspectorMonthMap(map){
   var out = {};
   if(!map || typeof map !== 'object' || Array.isArray(map)) return out;
   Object.keys(map).forEach(function(key){
-    out[key] = cloneSchInspectorList(map[key]);
+    out[key] = cloneVisInspectorList(map[key]);
   });
   return out;
 }
-function loadSchInspectorMonths(){
+function loadVisInspectorMonths(){
   try{
-    var raw = localStorage.getItem(centerPrefix()+'sch_inspector_months');
+    var raw = localStorage.getItem(centerPrefix()+'vis_inspector_months');
     if(raw){
-      return normalizeSchInspectorMonthMap(JSON.parse(raw));
+      return normalizeVisInspectorMonthMap(JSON.parse(raw));
+    }
+    var legacyRaw = localStorage.getItem(centerPrefix()+'sch_inspector_months');
+    if(legacyRaw){
+      return normalizeVisInspectorMonthMap(JSON.parse(legacyRaw));
     }
   } catch(e){}
   return {};
 }
-function saveSchInspectorMonths(map){
-  localStorage.setItem(centerPrefix()+'sch_inspector_months', JSON.stringify(normalizeSchInspectorMonthMap(map)));
+function saveVisInspectorMonths(map){
+  localStorage.setItem(centerPrefix()+'vis_inspector_months', JSON.stringify(normalizeVisInspectorMonthMap(map)));
 }
-function ensureSchInspectorsForMonth(m){
-  var key = schInspectorMonthKey(m);
-  if(Object.prototype.hasOwnProperty.call(SCH_INSPECTOR_MONTHS, key)){
-    var existing = cloneSchInspectorList(SCH_INSPECTOR_MONTHS[key]);
-    SCH_INSPECTOR_MONTHS[key] = existing;
-    saveSchInspectorMonths(SCH_INSPECTOR_MONTHS);
-    return cloneSchInspectorList(existing);
+function ensureVisInspectorsForMonth(m){
+  var key = visInspectorMonthKey(m);
+  if(Object.prototype.hasOwnProperty.call(VIS_INSPECTOR_MONTHS, key)){
+    var existing = cloneVisInspectorList(VIS_INSPECTOR_MONTHS[key]);
+    VIS_INSPECTOR_MONTHS[key] = existing;
+    saveVisInspectorMonths(VIS_INSPECTOR_MONTHS);
+    return cloneVisInspectorList(existing);
   }
 
   var seeded = [];
   for(var prev=m-1; prev>=1; prev--){
-    var prevKey = schInspectorMonthKey(prev);
-    if(!Object.prototype.hasOwnProperty.call(SCH_INSPECTOR_MONTHS, prevKey)) continue;
-    seeded = cloneSchInspectorList(SCH_INSPECTOR_MONTHS[prevKey]).filter(function(item){ return item.carry; });
+    var prevKey = visInspectorMonthKey(prev);
+    if(!Object.prototype.hasOwnProperty.call(VIS_INSPECTOR_MONTHS, prevKey)) continue;
+    seeded = cloneVisInspectorList(VIS_INSPECTOR_MONTHS[prevKey]).filter(function(item){ return item.carry; });
     break;
   }
-  if(!seeded.length && !Object.keys(SCH_INSPECTOR_MONTHS).length){
-    seeded = normalizeSchInspectorList(loadSchInspectors(), true);
+  if(!seeded.length && !Object.keys(VIS_INSPECTOR_MONTHS).length){
+    seeded = normalizeVisInspectorList(loadVisInspectors(), true);
   }
 
-  SCH_INSPECTOR_MONTHS[key] = cloneSchInspectorList(seeded);
-  saveSchInspectorMonths(SCH_INSPECTOR_MONTHS);
-  return cloneSchInspectorList(seeded);
+  VIS_INSPECTOR_MONTHS[key] = cloneVisInspectorList(seeded);
+  saveVisInspectorMonths(VIS_INSPECTOR_MONTHS);
+  return cloneVisInspectorList(seeded);
 }
-function setActiveSchInspectors(m){
-  SCH_INSPECTOR_ENTRIES = ensureSchInspectorsForMonth(m);
-  SCH_INSPECTORS = SCH_INSPECTOR_ENTRIES.map(function(item){ return item.name; });
-  saveSchInspectors(SCH_INSPECTORS);
-  return SCH_INSPECTORS;
+function setActiveVisInspectors(m){
+  VIS_INSPECTOR_ENTRIES = ensureVisInspectorsForMonth(m);
+  VIS_INSPECTORS = VIS_INSPECTOR_ENTRIES.map(function(item){ return item.name; });
+  INSPECTORS = VIS_INSPECTORS;
+  saveVisInspectors(VIS_INSPECTORS);
+  return VIS_INSPECTORS;
 }
-function saveSchInspectorsForMonth(m, list){
-  SCH_INSPECTOR_MONTHS[schInspectorMonthKey(m)] = cloneSchInspectorList(list);
-  saveSchInspectorMonths(SCH_INSPECTOR_MONTHS);
-  return setActiveSchInspectors(m);
+function saveVisInspectorsForMonth(m, list){
+  VIS_INSPECTOR_MONTHS[visInspectorMonthKey(m)] = cloneVisInspectorList(list);
+  saveVisInspectorMonths(VIS_INSPECTOR_MONTHS);
+  return setActiveVisInspectors(m);
 }
-function applySchInspectorConfig(monthMap, fallbackList, seedMonth){
+function applyVisInspectorConfig(monthMap, fallbackList, seedMonth){
   if(monthMap && typeof monthMap === 'object' && !Array.isArray(monthMap)){
-    SCH_INSPECTOR_MONTHS = normalizeSchInspectorMonthMap(monthMap);
+    VIS_INSPECTOR_MONTHS = normalizeVisInspectorMonthMap(monthMap);
   } else if(Array.isArray(fallbackList)){
-    SCH_INSPECTOR_MONTHS = {};
-    SCH_INSPECTOR_MONTHS[schInspectorMonthKey(seedMonth || schMonth || curMonth)] = normalizeSchInspectorList(fallbackList, true);
+    VIS_INSPECTOR_MONTHS = {};
+    VIS_INSPECTOR_MONTHS[visInspectorMonthKey(seedMonth || curMonth)] = normalizeVisInspectorList(fallbackList, true);
   } else {
-    SCH_INSPECTOR_MONTHS = {};
+    VIS_INSPECTOR_MONTHS = {};
   }
-  saveSchInspectorMonths(SCH_INSPECTOR_MONTHS);
-  setActiveSchInspectors(typeof schMonth === 'number' ? schMonth : curMonth);
+  saveVisInspectorMonths(VIS_INSPECTOR_MONTHS);
+  setActiveVisInspectors(curMonth);
 }
 function buildVisConfigPayload(){
   return {
     ships:SHIPS,
     inspectors:VIS_INSPECTORS,
     schInspectors:SCH_INSPECTORS,
-    schInspectorMonths:SCH_INSPECTOR_MONTHS
+    visInspectorMonths:VIS_INSPECTOR_MONTHS
   };
 }
 /* 하위 호환 */
@@ -717,8 +722,18 @@ function applyShips(){
 }
 
 /* ── 점검횟수 인원 모달 ── */
+function updateInsModalMeta(){
+  var title = document.querySelector('#insModal .modal-title');
+  if(title) title.textContent = '인원 관리 (출항전 점검횟수 ' + curMonth + '월)';
+  var note = document.getElementById('insMonthNote');
+  if(note) note.textContent = curMonth + '월 인원을 관리합니다. 이월 체크 시 다음 달에도 자동 등록됩니다.';
+}
 function openInsModal(){
-  modalIns = VIS_INSPECTORS.slice();
+  setActiveVisInspectors(curMonth);
+  modalIns = cloneVisInspectorList(VIS_INSPECTOR_ENTRIES);
+  updateInsModalMeta();
+  document.getElementById('newInsName').value = '';
+  document.getElementById('newInsCarry').checked = false;
   renderInsList();
   document.getElementById('insModal').classList.add('open');
 }
@@ -727,77 +742,7 @@ function closeInsModal(){ document.getElementById('insModal').classList.remove('
 function renderInsList(){
   var ul = document.getElementById('insList');
   ul.innerHTML = '';
-  modalIns.forEach(function(name, idx){
-    var li = document.createElement('li');
-    li.className = 'ship-item';
-    li.draggable = true;
-    li.dataset.idx = idx;
-    li.innerHTML =
-      '<span class="ship-drag" title="드래그로 순서 변경">&#8942;</span>' +
-      '<input class="ship-name-inp" value="' + escHtml(name) + '" placeholder="이름" data-idx="' + idx + '">' +
-      '<button class="ship-del" data-del="' + idx + '" title="삭제">&#10005;</button>';
-    ul.appendChild(li);
-  });
-  ul.querySelectorAll('.ship-name-inp').forEach(function(inp){
-    inp.addEventListener('input', function(){ modalIns[+this.dataset.idx] = this.value; });
-  });
-  ul.querySelectorAll('[data-del]').forEach(function(btn){
-    btn.addEventListener('click', function(){ deleteInspector(+this.dataset.del); });
-  });
-  initDrag(ul);
-}
-
-function deleteInspector(idx){
-  if(!confirm('"' + modalIns[idx] + '" 을 삭제하시겠습니까?')) return;
-  modalIns.splice(idx,1);
-  renderInsList();
-}
-
-function addInspector(){
-  var name = document.getElementById('newInsName').value.trim();
-  if(!name){ document.getElementById('newInsName').focus(); return; }
-  if(modalIns.indexOf(name) !== -1){ showToast('이미 등록된 이름입니다'); return; }
-  modalIns.push(name);
-  document.getElementById('newInsName').value = '';
-  renderInsList();
-}
-
-function applyInspectors(){
-  var names = modalIns.map(function(n){return typeof n==='string'?n.trim():'';});
-  if(names.some(function(n){return !n;})){ showToast('이름을 모두 입력해주세요'); return; }
-  var uniq = new Set(names);
-  if(uniq.size !== names.length){ showToast('중복된 이름이 있습니다'); return; }
-  VIS_INSPECTORS = names;
-  INSPECTORS = VIS_INSPECTORS;
-  saveVisInspectors(VIS_INSPECTORS);
-  cloudUpsert(centerPrefix()+'vis_config', buildVisConfigPayload());
-  closeInsModal();
-  renderTable(curMonth);
-  showToast('점검횟수 인원이 업데이트되었습니다');
-}
-
-/* ── 근무표 인원 모달 ── */
-function updateSchInsModalMeta(){
-  var title = document.querySelector('#schInsModal .modal-title');
-  if(title) title.textContent = '인원 관리(근무표 ' + schMonth + '월)';
-  var note = document.getElementById('schInsMonthNote');
-  if(note) note.textContent = schMonth + '월 인원을 관리합니다. 이월 체크 시 다음 달에도 자동 등록됩니다.';
-}
-function openSchInsModal(){
-  setActiveSchInspectors(schMonth);
-  modalSchIns = cloneSchInspectorList(SCH_INSPECTOR_ENTRIES);
-  updateSchInsModalMeta();
-  document.getElementById('newSchInsName').value = '';
-  document.getElementById('newSchInsCarry').checked = false;
-  renderSchInsList();
-  document.getElementById('schInsModal').classList.add('open');
-}
-function closeSchInsModal(){ document.getElementById('schInsModal').classList.remove('open'); }
-
-function renderSchInsList(){
-  var ul = document.getElementById('schInsList');
-  ul.innerHTML = '';
-  modalSchIns.forEach(function(item, idx){
+  modalIns.forEach(function(item, idx){
     var li = document.createElement('li');
     li.className = 'ship-item';
     li.draggable = true;
@@ -810,36 +755,36 @@ function renderSchInsList(){
     ul.appendChild(li);
   });
   ul.querySelectorAll('.ship-name-inp').forEach(function(inp){
-    inp.addEventListener('input', function(){ modalSchIns[+this.dataset.idx].name = this.value; });
+    inp.addEventListener('input', function(){ modalIns[+this.dataset.idx].name = this.value; });
   });
   ul.querySelectorAll('[data-carry]').forEach(function(chk){
-    chk.addEventListener('change', function(){ modalSchIns[+this.dataset.carry].carry = !!this.checked; });
+    chk.addEventListener('change', function(){ modalIns[+this.dataset.carry].carry = !!this.checked; });
   });
   ul.querySelectorAll('[data-del]').forEach(function(btn){
-    btn.addEventListener('click', function(){ deleteSchInspector(+this.dataset.del); });
+    btn.addEventListener('click', function(){ deleteInspector(+this.dataset.del); });
   });
   initDrag(ul);
 }
 
-function deleteSchInspector(idx){
-  if(!confirm('"' + modalSchIns[idx].name + '" 을 삭제하시겠습니까?')) return;
-  modalSchIns.splice(idx,1);
-  renderSchInsList();
+function deleteInspector(idx){
+  if(!confirm('"' + modalIns[idx].name + '" 을 삭제하시겠습니까?')) return;
+  modalIns.splice(idx,1);
+  renderInsList();
 }
 
-function addSchInspector(){
-  var name = document.getElementById('newSchInsName').value.trim();
-  var carry = !!document.getElementById('newSchInsCarry').checked;
-  if(!name){ document.getElementById('newSchInsName').focus(); return; }
-  if(modalSchIns.some(function(item){ return item.name === name; })){ showToast('이미 등록된 이름입니다'); return; }
-  modalSchIns.push({name:name, carry:carry});
-  document.getElementById('newSchInsName').value = '';
-  document.getElementById('newSchInsCarry').checked = false;
-  renderSchInsList();
+function addInspector(){
+  var name = document.getElementById('newInsName').value.trim();
+  var carry = !!document.getElementById('newInsCarry').checked;
+  if(!name){ document.getElementById('newInsName').focus(); return; }
+  if(modalIns.some(function(item){ return item.name === name; })){ showToast('이미 등록된 이름입니다'); return; }
+  modalIns.push({name:name, carry:carry});
+  document.getElementById('newInsName').value = '';
+  document.getElementById('newInsCarry').checked = false;
+  renderInsList();
 }
 
-function applySchInspectors(){
-  var nextList = modalSchIns.map(function(item){
+function applyInspectors(){
+  var nextList = modalIns.map(function(item){
     return {
       name:item && typeof item.name === 'string' ? item.name.trim() : '',
       carry:!!(item && item.carry)
@@ -849,7 +794,66 @@ function applySchInspectors(){
   if(names.some(function(n){return !n;})){ showToast('이름을 모두 입력해주세요'); return; }
   var uniq = new Set(names);
   if(uniq.size !== names.length){ showToast('중복된 이름이 있습니다'); return; }
-  saveSchInspectorsForMonth(schMonth, nextList);
+  saveVisInspectorsForMonth(curMonth, nextList);
+  cloudUpsert(centerPrefix()+'vis_config', buildVisConfigPayload());
+  closeInsModal();
+  renderTable(curMonth);
+  showToast('점검횟수 인원이 업데이트되었습니다');
+}
+
+/* ── 근무표 인원 모달 ── */
+function openSchInsModal(){
+  modalSchIns = SCH_INSPECTORS.slice();
+  renderSchInsList();
+  document.getElementById('schInsModal').classList.add('open');
+}
+function closeSchInsModal(){ document.getElementById('schInsModal').classList.remove('open'); }
+
+function renderSchInsList(){
+  var ul = document.getElementById('schInsList');
+  ul.innerHTML = '';
+  modalSchIns.forEach(function(name, idx){
+    var li = document.createElement('li');
+    li.className = 'ship-item';
+    li.draggable = true;
+    li.dataset.idx = idx;
+    li.innerHTML =
+      '<span class="ship-drag" title="드래그로 순서 변경">&#8942;</span>' +
+      '<input class="ship-name-inp" value="' + escHtml(name) + '" placeholder="이름" data-idx="' + idx + '">' +
+      '<button class="ship-del" data-del="' + idx + '" title="삭제">&#10005;</button>';
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll('.ship-name-inp').forEach(function(inp){
+    inp.addEventListener('input', function(){ modalSchIns[+this.dataset.idx] = this.value; });
+  });
+  ul.querySelectorAll('[data-del]').forEach(function(btn){
+    btn.addEventListener('click', function(){ deleteSchInspector(+this.dataset.del); });
+  });
+  initDrag(ul);
+}
+
+function deleteSchInspector(idx){
+  if(!confirm('"' + modalSchIns[idx] + '" 을 삭제하시겠습니까?')) return;
+  modalSchIns.splice(idx,1);
+  renderSchInsList();
+}
+
+function addSchInspector(){
+  var name = document.getElementById('newSchInsName').value.trim();
+  if(!name){ document.getElementById('newSchInsName').focus(); return; }
+  if(modalSchIns.indexOf(name) !== -1){ showToast('이미 등록된 이름입니다'); return; }
+  modalSchIns.push(name);
+  document.getElementById('newSchInsName').value = '';
+  renderSchInsList();
+}
+
+function applySchInspectors(){
+  var names = modalSchIns.map(function(n){return typeof n==='string'?n.trim():'';});
+  if(names.some(function(n){return !n;})){ showToast('이름을 모두 입력해주세요'); return; }
+  var uniq = new Set(names);
+  if(uniq.size !== names.length){ showToast('중복된 이름이 있습니다'); return; }
+  SCH_INSPECTORS = names;
+  saveSchInspectors(SCH_INSPECTORS);
   cloudUpsert(centerPrefix()+'vis_config', buildVisConfigPayload());
   closeSchInsModal();
   renderSchedule(schMonth);
@@ -911,6 +915,7 @@ async function changeMonth(m){
   curMonth = m;
   document.querySelectorAll('.month-tab').forEach(function(b,i){ b.classList.toggle('active',i+1===m); });
   document.getElementById('pageMeta').textContent = '2026년 ' + m + '월 · ' + centerLabel() + '사무소';
+  setActiveVisInspectors(m);
   renderTable(m);
   setSyncStatus('syncing');
   var row = await cloudFetch(stKey(m));
@@ -1005,6 +1010,7 @@ function rebuildThead(){
 
 /* ── render table ── */
 function renderTable(m){
+  setActiveVisInspectors(m);
   var data=loadData(m);
   var days=DAYS_IN[m]||31;
   var sn=shipNames();
@@ -1213,7 +1219,7 @@ function exportJSON(){
     ships:SHIPS,
     inspectors:VIS_INSPECTORS,
     schInspectors:SCH_INSPECTORS,
-    schInspectorMonths:SCH_INSPECTOR_MONTHS,
+    visInspectorMonths:VIS_INSPECTOR_MONTHS,
     data:data
   };
   var blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
@@ -1232,10 +1238,10 @@ function loadFromFile(e){
       var obj=JSON.parse(ev.target.result);
       var m=obj.month||curMonth;
       if(obj.ships){SHIPS=obj.ships;saveShips(SHIPS);rebuildColgroup();rebuildThead();}
-      if(obj.inspectors){VIS_INSPECTORS=obj.inspectors;INSPECTORS=VIS_INSPECTORS;saveVisInspectors(VIS_INSPECTORS);}
-      if(obj.schInspectorMonths || obj.schInspectors){
-        applySchInspectorConfig(obj.schInspectorMonths, obj.schInspectors, m);
+      if(obj.visInspectorMonths || obj.inspectors){
+        applyVisInspectorConfig(obj.visInspectorMonths, obj.inspectors, m);
       }
+      if(obj.schInspectors){SCH_INSPECTORS=obj.schInspectors;saveSchInspectors(SCH_INSPECTORS);}
       localStorage.setItem(stKey(m),JSON.stringify(obj.data));
       if(m!==curMonth) changeMonth(m); else renderTable(m);
       showToast(m+'월 데이터 불러오기 완료');
@@ -1527,10 +1533,10 @@ async function initSync(){
   if(cfgRow && cfgRow.payload){
     var cfg = cfgRow.payload;
     if(cfg.ships){ SHIPS=cfg.ships; saveShips(SHIPS); rebuildColgroup(); rebuildThead(); }
-    if(cfg.inspectors){ VIS_INSPECTORS=cfg.inspectors; INSPECTORS=VIS_INSPECTORS; saveVisInspectors(VIS_INSPECTORS); }
-    if(cfg.schInspectorMonths || cfg.schInspectors){
-      applySchInspectorConfig(cfg.schInspectorMonths, cfg.schInspectors, schMonth);
+    if(cfg.visInspectorMonths || cfg.inspectors){
+      applyVisInspectorConfig(cfg.visInspectorMonths, cfg.inspectors, curMonth);
     }
+    if(cfg.schInspectors){ SCH_INSPECTORS=cfg.schInspectors; saveSchInspectors(SCH_INSPECTORS); }
   }
   if(dataRow){
     localStorage.setItem(stKey(curMonth), JSON.stringify(dataRow.payload));
@@ -1742,8 +1748,6 @@ function schCellHtml(slot,d,val,hasLeave){
 }
 
 function renderSchedule(m){
-  setActiveSchInspectors(m);
-  if(document.getElementById('schInsModal').classList.contains('open')) updateSchInsModalMeta();
   buildSchTable();
   var slots=getSlots();
   var data=loadSchData(m);
@@ -2278,9 +2282,9 @@ function switchCenter(c){
 
   /* 센터별 선명·인원 재로드 */
   SHIPS = loadShips();
-  VIS_INSPECTORS = loadVisInspectors();
-  SCH_INSPECTOR_MONTHS = loadSchInspectorMonths();
-  setActiveSchInspectors(schMonth);
+  VIS_INSPECTOR_MONTHS = loadVisInspectorMonths();
+  setActiveVisInspectors(curMonth);
+  SCH_INSPECTORS = loadSchInspectors();
   INSPECTORS = VIS_INSPECTORS;
 
   /* 페이지 메타 갱신 */
