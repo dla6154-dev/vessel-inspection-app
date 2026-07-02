@@ -514,6 +514,7 @@ let SHIPS = loadShips();
 let VIS_INSPECTOR_MONTHS = loadVisInspectorMonths();
 let VIS_INSPECTOR_ENTRIES = [];
 let VIS_INSPECTORS = [];
+let SCH_INSPECTOR_ENTRIES = [];
 let SCH_INSPECTORS = loadSchInspectors();
 let INSPECTORS = VIS_INSPECTORS;            /* 하위 호환 alias (점검횟수 탭) */
 let modalShips = [];
@@ -621,10 +622,44 @@ function setActiveVisInspectors(m){
   saveVisInspectors(VIS_INSPECTORS);
   return VIS_INSPECTORS;
 }
+function getScheduleWorkersFromData(m){
+  var data = loadSchData(m), names = [], seen = {};
+  Object.keys(data || {}).forEach(function(dayKey){
+    var row = data[dayKey] || {};
+    Object.keys(row).forEach(function(slotKey){
+      var worker = row[slotKey] && typeof row[slotKey].worker === 'string' ? row[slotKey].worker.trim() : '';
+      if(!worker || seen[worker]) return;
+      seen[worker] = true;
+      names.push(worker);
+    });
+  });
+  return names;
+}
+function setActiveSchInspectors(m){
+  SCH_INSPECTOR_ENTRIES = ensureVisInspectorsForMonth(m);
+  var names = SCH_INSPECTOR_ENTRIES.map(function(item){ return item.name; });
+  getScheduleWorkersFromData(m).forEach(function(name){
+    if(names.indexOf(name) === -1) names.push(name);
+  });
+  SCH_INSPECTORS = names;
+  saveSchInspectors(SCH_INSPECTORS);
+  return SCH_INSPECTORS;
+}
 function saveVisInspectorsForMonth(m, list){
   VIS_INSPECTOR_MONTHS[visInspectorMonthKey(m)] = cloneVisInspectorList(list);
   saveVisInspectorMonths(VIS_INSPECTOR_MONTHS);
   return setActiveVisInspectors(m);
+}
+function saveSharedInspectorsForMonth(m, names){
+  var current = ensureVisInspectorsForMonth(m);
+  var carryMap = {};
+  current.forEach(function(item){ carryMap[item.name] = !!item.carry; });
+  VIS_INSPECTOR_MONTHS[visInspectorMonthKey(m)] = names.map(function(name){
+    return {name:name, carry:!!carryMap[name]};
+  });
+  saveVisInspectorMonths(VIS_INSPECTOR_MONTHS);
+  setActiveVisInspectors(curMonth);
+  setActiveSchInspectors(schMonth);
 }
 function applyVisInspectorConfig(monthMap, fallbackList, seedMonth){
   if(monthMap && typeof monthMap === 'object' && !Array.isArray(monthMap)){
@@ -637,6 +672,7 @@ function applyVisInspectorConfig(monthMap, fallbackList, seedMonth){
   }
   saveVisInspectorMonths(VIS_INSPECTOR_MONTHS);
   setActiveVisInspectors(curMonth);
+  if(typeof schMonth === 'number') setActiveSchInspectors(schMonth);
 }
 function buildVisConfigPayload(){
   return {
@@ -650,6 +686,11 @@ function buildVisConfigPayload(){
 function loadInspectors(){ return loadVisInspectors(); }
 function saveInspectors(list){ saveVisInspectors(list); }
 function insOptions(){ return [''].concat(VIS_INSPECTORS); }
+function optionsWithValue(base, value){
+  var list = base.slice();
+  if(value && list.indexOf(value) === -1) list.push(value);
+  return list;
+}
 
 /* ── ships storage ── */
 function loadShips(){
@@ -795,6 +836,7 @@ function applyInspectors(){
   var uniq = new Set(names);
   if(uniq.size !== names.length){ showToast('중복된 이름이 있습니다'); return; }
   saveVisInspectorsForMonth(curMonth, nextList);
+  if(typeof schMonth === 'number' && schMonth === curMonth) setActiveSchInspectors(schMonth);
   cloudUpsert(centerPrefix()+'vis_config', buildVisConfigPayload());
   closeInsModal();
   renderTable(curMonth);
@@ -803,6 +845,7 @@ function applyInspectors(){
 
 /* ── 근무표 인원 모달 ── */
 function openSchInsModal(){
+  setActiveSchInspectors(schMonth);
   modalSchIns = SCH_INSPECTORS.slice();
   renderSchInsList();
   document.getElementById('schInsModal').classList.add('open');
@@ -852,8 +895,7 @@ function applySchInspectors(){
   if(names.some(function(n){return !n;})){ showToast('이름을 모두 입력해주세요'); return; }
   var uniq = new Set(names);
   if(uniq.size !== names.length){ showToast('중복된 이름이 있습니다'); return; }
-  SCH_INSPECTORS = names;
-  saveSchInspectors(SCH_INSPECTORS);
+  saveSharedInspectorsForMonth(schMonth, names);
   cloudUpsert(centerPrefix()+'vis_config', buildVisConfigPayload());
   closeSchInsModal();
   renderSchedule(schMonth);
@@ -1039,12 +1081,14 @@ function renderTable(m){
       var bogV=r.bogo||'';
       html+='<td><input type="text" inputmode="numeric" pattern="[0-9]*" class="num-cell'+(bogV?'':' zero')+'" id="'+side+'_bog_'+d+'" value="'+escHtml(bogV)+'" maxlength="3" data-day="'+d+'" data-side="'+side+'" data-isbog="1" onfocus="this.select()"></td>';
 
+      var insOpts = optionsWithValue(opts, r.inspector||'');
       html+='<td><select class="ins-sel" id="'+side+'_ins_'+d+'" data-day="'+d+'" data-side="'+side+'">';
-      opts.forEach(function(i){ html+='<option'+(r.inspector===i?' selected':'')+'>'+escHtml(i)+'</option>'; });
+      insOpts.forEach(function(i){ html+='<option'+(r.inspector===i?' selected':'')+'>'+escHtml(i)+'</option>'; });
       html+='</select></td>';
 
+      var choOpts = optionsWithValue(opts, r.chulcha||'');
       html+='<td><select class="ins-sel" id="'+side+'_cho_'+d+'">';
-      opts.forEach(function(i){ html+='<option'+(r.chulcha===i?' selected':'')+'>'+escHtml(i)+'</option>'; });
+      choOpts.forEach(function(i){ html+='<option'+(r.chulcha===i?' selected':'')+'>'+escHtml(i)+'</option>'; });
       html+='</select></td>';
 
       html+='<td><input class="note-in" type="text" id="'+side+'_note_'+d+'" value="'+escHtml(r.note||'')+'" placeholder="비고..."></td>';
@@ -1241,7 +1285,11 @@ function loadFromFile(e){
       if(obj.visInspectorMonths || obj.inspectors){
         applyVisInspectorConfig(obj.visInspectorMonths, obj.inspectors, m);
       }
-      if(obj.schInspectors){SCH_INSPECTORS=obj.schInspectors;saveSchInspectors(SCH_INSPECTORS);}
+      if(obj.schInspectors){
+        SCH_INSPECTORS=obj.schInspectors;
+        saveSchInspectors(SCH_INSPECTORS);
+      }
+      setActiveSchInspectors(schMonth);
       localStorage.setItem(stKey(m),JSON.stringify(obj.data));
       if(m!==curMonth) changeMonth(m); else renderTable(m);
       showToast(m+'월 데이터 불러오기 완료');
@@ -1536,7 +1584,11 @@ async function initSync(){
     if(cfg.visInspectorMonths || cfg.inspectors){
       applyVisInspectorConfig(cfg.visInspectorMonths, cfg.inspectors, curMonth);
     }
-    if(cfg.schInspectors){ SCH_INSPECTORS=cfg.schInspectors; saveSchInspectors(SCH_INSPECTORS); }
+    if(cfg.schInspectors){
+      SCH_INSPECTORS=cfg.schInspectors;
+      saveSchInspectors(SCH_INSPECTORS);
+    }
+    setActiveSchInspectors(schMonth);
   }
   if(dataRow){
     localStorage.setItem(stKey(curMonth), JSON.stringify(dataRow.payload));
@@ -1748,6 +1800,7 @@ function schCellHtml(slot,d,val,hasLeave){
 }
 
 function renderSchedule(m){
+  setActiveSchInspectors(m);
   buildSchTable();
   var slots=getSlots();
   var data=loadSchData(m);
@@ -2284,7 +2337,7 @@ function switchCenter(c){
   SHIPS = loadShips();
   VIS_INSPECTOR_MONTHS = loadVisInspectorMonths();
   setActiveVisInspectors(curMonth);
-  SCH_INSPECTORS = loadSchInspectors();
+  setActiveSchInspectors(schMonth);
   INSPECTORS = VIS_INSPECTORS;
 
   /* 페이지 메타 갱신 */
