@@ -502,17 +502,9 @@
       </tr>
       <tr>
         <td class="label">비행장소</td>
-        <td>
-          <select id="f_location" data-sync="flight_location" style="width:100%;font-size:12px;text-align:left;">
-            <option value="">-- 선택하세요 --</option>
-            <option value="목포 연안여객터미널"   data-short="목포"   data-station="165">목포 연안여객터미널</option>
-            <option value="진도항 연안여객터미널"  data-short="진도항"  data-station="268">진도항 연안여객터미널</option>
-            <option value="흑산도 연안여객터미널"  data-short="흑산도"  data-station="169">흑산도 연안여객터미널</option>
-            <option value="영광 법성포 연안여객터미널" data-short="영광" data-station="252">영광 법성포 연안여객터미널</option>
-          </select>
-        </td>
-        <td class="label">추진업무</td>
-        <td>
+        <td><input type="text" id="f_location" data-sync="flight_location" placeholder="예: 삼학도, 진도항 연안여객터미널"></td>
+        <td class="label no-print">추진업무</td>
+        <td class="no-print">
           <select id="f_task" data-sync="flight_task" style="width:100%;font-size:12px;text-align:left;">
             <option value="">-- 선택하세요 --</option>
             <option value="1. 3D 맵핑 활용">1. 3D 맵핑 활용</option>
@@ -528,7 +520,7 @@
           </select>
         </td>
       </tr>
-      <tr>
+      <tr class="no-print">
         <td class="label">분류</td>
         <td><input type="text" id="f_category" readonly style="background:#f5f5f5;color:#555;" placeholder="추진업무 선택 시 자동입력"></td>
         <td class="label">비행목적(메모)</td>
@@ -710,7 +702,14 @@
         </select>
       </div>
       <div class="field"><label>시정(km)</label><input type="text" id="f_visibility" data-sync="visibility" value="10"></div>
-      <div class="field wide" style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+      <div class="field wide" style="display:flex;align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap;">
+        <select id="f_station" style="font-size:13px;padding:6px 10px;border:1px solid #ccc;border-radius:6px;">
+          <option value="" data-short="">-- 날씨 관측소 --</option>
+          <option value="165" data-short="목포">목포 #165</option>
+          <option value="268" data-short="진도항">진도 #268</option>
+          <option value="169" data-short="흑산도">흑산도 #169</option>
+          <option value="252" data-short="영광">영광 #252</option>
+        </select>
         <button type="button" id="btnAutoWeather" style="background:#3b82f6;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:14px;cursor:pointer;white-space:nowrap;">🌤 현재 기상 불러오기</button>
         <span id="autoWeatherMsg" style="font-size:12px;color:#666;"></span>
       </div>
@@ -1183,11 +1182,11 @@ document.getElementById("f_date").value = new Date().toLocaleDateString("sv-SE")
 
 document.getElementById("btnAutoWeather").addEventListener("click", async () => {
   const msg = document.getElementById("autoWeatherMsg");
-  const locSel = document.getElementById("f_location");
-  const selOpt = locSel.options[locSel.selectedIndex];
-  const station = selOpt && selOpt.dataset.station ? selOpt.dataset.station : "268";
-  const locName = selOpt && selOpt.dataset.short ? selOpt.dataset.short : "진도군";
-  if(!locSel.value){ msg.textContent = "먼저 비행장소를 선택해 주세요."; msg.style.color = "#dc2626"; return; }
+  const stationSel = document.getElementById("f_station");
+  const stationOpt = stationSel.options[stationSel.selectedIndex];
+  const station = stationSel.value || "268";
+  const locName = stationOpt && stationOpt.dataset.short ? stationOpt.dataset.short : "진도";
+  if(!stationSel.value){ msg.textContent = "날씨 관측소를 먼저 선택해 주세요."; msg.style.color = "#dc2626"; return; }
   msg.textContent = "불러오는 중...";
   msg.style.color = "#666";
   try {
@@ -1267,14 +1266,15 @@ function saveDroneSession(){
   const endV    = document.getElementById("f_end").value;
   const durEl   = document.getElementById("f_duration");
   const durMin  = durEl.value ? parseInt(durEl.value) : null;
-  const locSel  = document.getElementById("f_location");
-  const selOpt  = locSel.options[locSel.selectedIndex];
-  const locShort = selOpt && selOpt.dataset.short ? selOpt.dataset.short : locSel.value;
+  const locInput   = document.getElementById("f_location");
+  const stationSel = document.getElementById("f_station");
+  const stationOpt = stationSel.options[stationSel.selectedIndex];
+  const locShort   = stationOpt && stationOpt.dataset.short ? stationOpt.dataset.short : stationSel.value;
   const session = {
     date:           document.getElementById("f_date").value,
     pilot:          getPilotName(),
     pilot_license:  getPilotLicense(),
-    location:       locSel.value,
+    location:       locInput.value,
     location_short: locShort,
     task:           document.getElementById("f_task").value,
     category:       document.getElementById("f_category").value,
