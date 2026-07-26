@@ -29,6 +29,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13
 .topbar-actions{display:flex;gap:8px;align-items:center}
 
 .btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 13px;border:1px solid transparent;border-radius:var(--radius);font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .15s}
+.btn-icon{display:inline-flex;align-items:center;justify-content:center;font-size:14px;line-height:1;flex-shrink:0}
 .btn-ghost{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:#f4f3ef}
 .btn-ghost:hover{background:rgba(255,255,255,.18)}
 .btn-save{background:var(--green);color:#fff;border-color:var(--green)}
@@ -37,6 +38,8 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13
 .btn-dl:hover{filter:brightness(1.1)}
 .btn-ships{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#f4f3ef}
 .btn-ships:hover{background:rgba(255,255,255,.2)}
+.btn-surface{background:var(--surface);border-color:var(--border);color:var(--text)}
+.btn-surface:hover{background:var(--bg);border-color:var(--border2)}
 
 .shell{max-width:1280px;margin:0 auto;padding:0 20px 60px}
 .page-header{padding:22px 0 16px;display:flex;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--border);margin-bottom:14px}
@@ -129,6 +132,11 @@ input.note-in:hover,input.note-in:focus{border-color:var(--border2);background:r
 .modal-close:hover{background:var(--bg)}
 .modal-body{padding:16px 20px}
 .modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.modal.modal-wide{width:min(1600px,calc(100vw - 24px));max-width:min(1600px,calc(100vw - 24px))}
+.modal.modal-survey{display:flex;flex-direction:column;max-height:calc(100vh - 24px)}
+.modal.modal-survey .modal-head{align-items:flex-start}
+.modal.modal-survey .modal-body{padding:12px 16px;overflow-y:auto;overflow-x:hidden}
+.modal.modal-survey .modal-footer{justify-content:space-between;align-items:center}
 
 .ship-list{list-style:none;display:flex;flex-direction:column;gap:6px;margin-bottom:14px;max-height:320px;overflow-y:auto}
 .ship-item{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;cursor:default}
@@ -194,6 +202,34 @@ input.note-in:hover,input.note-in:focus{border-color:var(--border2);background:r
 .sch-section{margin-top:0}
 .sch-section-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid var(--border2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
 .sch-controls{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.sch-actions{display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.sch-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:12px}
+.sch-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.sch-panel-title{font-size:14px;font-weight:600;color:var(--text)}
+.sch-panel-note{font-size:11px;color:var(--text3);margin-top:4px}
+.sch-survey-launch{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.sch-survey-launch .btn{flex-shrink:0}
+.sch-survey-wrap{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.sch-stats-wrap{overflow:auto;border:1px solid var(--border);border-radius:var(--radius)}
+.sch-survey-tbl{width:100%;border-collapse:collapse;font-size:11px;background:var(--surface);table-layout:fixed}
+.sch-survey-tbl th,.sch-survey-tbl td{border:1px solid var(--border);text-align:center;padding:0}
+.sch-survey-tbl th{background:#f0ede6;color:var(--text2);font-weight:600}
+.sch-survey-name{background:#fbfaf7!important;width:86px;padding:8px 10px!important;text-align:left!important;font-size:12px;color:var(--text);word-break:keep-all}
+.sch-survey-total{background:#f7f6f2!important;width:48px;padding:8px 6px!important;font-family:var(--mono)}
+.sch-survey-head-day{padding:6px 0!important;font-family:var(--mono);font-size:10px}
+.sch-survey-head-dow{padding:5px 0!important;font-size:10px}
+.sch-survey-we{background:#fff59d!important}
+.sch-survey-btn{width:100%;height:24px;border:none;background:transparent;font-family:var(--mono);font-size:10px;color:var(--text2);cursor:pointer;transition:background .12s,color .12s}
+.sch-survey-btn:hover{background:#f7f6f2}
+.sch-survey-btn.active{background:var(--amber-light);color:var(--amber);font-weight:700}
+.sch-survey-btn.leave{background:var(--accent-light);color:var(--accent);font-weight:700}
+.sch-survey-foot{background:#f7f6f2;font-weight:600;font-family:var(--mono)}
+#schSurveyModal .sch-survey-tbl{font-size:10px}
+#schSurveyModal .sch-survey-name{width:92px;padding:6px 8px!important;font-size:11px}
+#schSurveyModal .sch-survey-total{width:44px;padding:6px 4px!important;font-size:10px}
+#schSurveyModal .sch-survey-head-day{padding:4px 0!important}
+#schSurveyModal .sch-survey-head-dow{padding:4px 0!important}
+#schSurveyModal .sch-survey-btn{height:22px;font-size:10px}
 .sch-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow-x:auto}
 table.sch-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:680px}
 .sch-tbl th{background:#f0ede6;font-size:11px;font-weight:600;color:var(--text2);padding:8px 10px;text-align:center;border:1px solid var(--border2);white-space:nowrap}
@@ -211,6 +247,44 @@ table.sch-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:680px
 td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:#fff8e8;border-color:#e0c97a}
 .sch-휴무{font-size:11px;color:var(--text3);text-align:left!important;padding-left:10px!important}
 .sch-day-num{font-family:var(--mono);font-weight:500;color:var(--text2);font-size:12px}
+.sch-table-wrap{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);overflow:auto}
+.sch-tbl{min-width:920px;table-layout:fixed;background:var(--surface)}
+.sch-tbl th{padding:10px 8px}
+.sch-tbl td{padding:0;border:1px solid #ddd9cd;height:40px;background:#fff}
+.sch-tbl tr.sch-weekend td{background:#fffbe6}
+.sch-tbl td.sch-day-num{font-weight:600;font-size:13px;background:#fbfaf6}
+.sch-tbl td.sch-day-dow{font-size:13px;background:#fbfaf6}
+.sch-cell{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:stretch;gap:0;height:40px}
+.sch-cell.sch-cell-off{grid-template-columns:minmax(0,1fr)}
+.sch-worker-sel{width:100%;height:100%;padding:0 10px;border:none;border-radius:0;background:transparent;font-size:13px;min-width:0;transition:background .12s,box-shadow .12s,color .12s}
+.sch-worker-sel:hover{background:#f8f7f2}
+.sch-worker-sel:focus{outline:none;background:#fff;box-shadow:inset 0 0 0 2px rgba(26,79,138,.18)}
+.sch-leave-btn{height:100%;width:38px;border:none;border-left:1px solid #ddd9cd;border-radius:0;background:#f4f1e8;color:var(--text3);font-size:12px}
+.sch-leave-btn:hover{background:var(--amber-light);border-color:transparent;color:var(--amber)}
+.sch-leave-btn.active{background:var(--amber-light);border-color:transparent;color:var(--amber);font-style:italic;font-weight:700}
+td.cell-leave{background:#fff6df}
+td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:transparent;border-color:transparent}
+.sch-tbl td.sch-off-slot{background:#faf8f1}
+.sch-tbl td.sch-off-slot .sch-worker-sel{background:transparent}
+.sch-tbl td.sch-focus-cell{background:#e9f2ff!important;box-shadow:inset 0 0 0 2px #5d8fc9}
+.sch-tbl td.sch-focus-cell .sch-worker-sel{background:transparent;color:var(--accent);font-weight:600}
+.sch-tbl td.sch-focus-cell .sch-leave-btn{background:#dfeaf7;color:var(--accent)}
+.sch-tbl tr.sch-focus-row td.sch-day-num,.sch-tbl tr.sch-focus-row td.sch-day-dow{background:#f2f7ff}
+.sch-tbl td.sch-check-cell{padding:0;background:#fbfaf6}
+.sch-check-mark{display:flex;align-items:center;justify-content:center;width:100%;height:40px;font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.04em}
+.sch-check-mark.ok{background:#edf7f0;color:var(--green)}
+.sch-check-mark.bad{background:#fff1ef;color:var(--red)}
+.sch-check-mark.empty{background:#f3f1ea;color:var(--text3)}
+.sch-name-btn{width:100%;border:none;background:transparent;padding:0;text-align:left;font:inherit;color:var(--text);cursor:pointer}
+.sch-name-btn:hover{color:var(--accent)}
+.sch-name-btn.active{color:var(--accent);font-weight:600;text-decoration:underline}
+#schStatsTbody tr.active td{background:#edf4ff}
+.sch-table-wrap.sch-fit-screen .sch-tbl th{padding:8px 5px;font-size:10px}
+.sch-table-wrap.sch-fit-screen .sch-tbl td{height:36px}
+.sch-table-wrap.sch-fit-screen .sch-worker-sel{padding:0 6px;font-size:12px}
+.sch-table-wrap.sch-fit-screen .sch-leave-btn{width:32px;font-size:11px}
+.sch-table-wrap.sch-fit-screen .sch-check-mark{height:36px;font-size:13px}
+.sch-table-wrap.sch-fit-screen .note-in{height:100%;padding:0 6px;border:none;border-radius:0}
 
 /* ── 센터 전환 ── */
 .center-switcher{display:flex;gap:4px;padding:10px 12px 10px;border-bottom:1px solid var(--border);margin-bottom:4px}
@@ -313,11 +387,32 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:#f
         <input class="add-inp" id="newSchInsName" placeholder="새 이름..." onkeydown="if(event.key==='Enter')addSchInspector()">
         <button class="btn-add" onclick="addSchInspector()">+ 추가</button>
       </div>
-      <p class="hint-small">근무·휴무 선택 목록에 나타납니다 / 드래그로 순서 변경</p>
+      <p class="hint-small">출항전 점검횟수 인원관리에서 이월 체크한 인원은 자동 포함됩니다 / 여기서는 추가 인원만 관리합니다</p>
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeSchInsModal()">취소</button>
       <button class="btn-ok" onclick="applySchInspectors()">적용</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="schSurveyModal" onclick="if(event.target===this)closeSchLeaveSurveyModal()">
+  <div class="modal modal-wide modal-survey">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">휴무표 조사</div>
+        <p class="sch-modal-note" id="schSurveyMonthNote"></p>
+      </div>
+      <button class="modal-close" onclick="closeSchLeaveSurveyModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div class="sch-survey-wrap">
+        <table class="sch-survey-tbl" id="schSurveyTable"></table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="clearSchLeaveSurvey(schMonth)">조사표 초기화</button>
+      <button class="btn-ok" onclick="closeSchLeaveSurveyModal()">닫기</button>
     </div>
   </div>
 </div>
@@ -334,6 +429,10 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:#f
       <span class="sidenav-icon">&#128202;</span>
       <span>출항 전 점검 횟수</span>
     </button>
+    <a class="sidenav-item" href="drone_forms.html" style="text-decoration:none;">
+      <span class="sidenav-icon">🚁</span>
+      <span>드론 전자서식</span>
+    </a>
     <button class="sidenav-item" id="nav-schedule" onclick="showPage('schedule')">
       <span class="sidenav-icon">&#128203;</span>
       <span>근무표 작성</span>
@@ -411,10 +510,36 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:#f
         <div class="month-tabs" id="schMonthTabs"></div>
       </div>
     </div>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">
-      <button class="btn btn-ships" onclick="openSchInsModal()">&#128100; 인원 관리</button>
+    <div class="sch-actions">
+      <button class="btn btn-surface" onclick="openSchInsModal()"><span class="btn-icon">&#128100;</span><span>인원 관리</span></button>
+      <button class="btn btn-surface" onclick="openSchLeaveSurveyModal()" title="휴무표 조사 열기"><span class="btn-icon">&#128197;</span><span>휴무표 조사</span></button>
       <button class="btn btn-save" onclick="saveSchedule()">&#128190; 저장</button>
       <button class="btn btn-dl" onclick="downloadScheduleExcel()">&#128229; 엑셀 다운로드</button>
+    </div>
+    <div class="sch-survey-launch">
+      <div class="sch-panel-note">달력 아이콘을 누르면 휴무표 조사 창이 열리고, 입력한 희망 휴무는 근무표 휴무 칸에 자동 반영됩니다.</div>
+    </div>
+    <div class="sch-panel">
+      <div class="sch-panel-head">
+        <div>
+          <div class="sch-panel-title">휴무/연가 현황</div>
+          <div class="sch-panel-note">희망 휴무, 현재 휴무 배정, 연가 사용 일수를 함께 확인합니다.</div>
+        </div>
+      </div>
+      <div class="sch-stats-wrap">
+        <table class="person-table">
+          <thead>
+            <tr>
+              <th>이름</th>
+              <th>희망 휴무</th>
+              <th>배정 휴무</th>
+              <th>연가</th>
+            </tr>
+          </thead>
+          <tbody id="schStatsTbody"></tbody>
+          <tfoot id="schStatsTfoot"></tfoot>
+        </table>
+      </div>
     </div>
     <div class="sch-table-wrap">
       <table class="sch-tbl" id="schTable">
@@ -516,6 +641,8 @@ let VIS_INSPECTOR_ENTRIES = [];
 let VIS_INSPECTORS = [];
 let SCH_INSPECTOR_ENTRIES = [];
 let SCH_INSPECTORS = loadSchInspectors();
+let SCH_LEAVE_SURVEY = {};
+let SCH_FOCUS_NAME = '';
 let INSPECTORS = VIS_INSPECTORS;            /* 하위 호환 alias (점검횟수 탭) */
 let modalShips = [];
 let modalIns = [];
@@ -528,11 +655,28 @@ function loadVisInspectors(){
   return DEFAULT_INSPECTORS.slice();
 }
 function saveVisInspectors(list){ localStorage.setItem(centerPrefix()+'vis_inspectors', JSON.stringify(list)); }
-function loadSchInspectors(){
-  try { var r=localStorage.getItem(centerPrefix()+'sch_inspectors'); if(r) return JSON.parse(r); } catch(e){}
-  return DEFAULT_INSPECTORS.slice();
+function normalizeNameList(list){
+  if(!Array.isArray(list)) return [];
+  var out = [];
+  var seen = {};
+  list.forEach(function(entry){
+    var name = typeof entry === 'string' ? entry.trim() : '';
+    if(!name || seen[name]) return;
+    seen[name] = true;
+    out.push(name);
+  });
+  return out;
 }
-function saveSchInspectors(list){ localStorage.setItem(centerPrefix()+'sch_inspectors', JSON.stringify(list)); }
+function loadSchInspectors(){
+  try {
+    var r = localStorage.getItem(centerPrefix()+'sch_inspectors');
+    if(r) return normalizeNameList(JSON.parse(r));
+  } catch(e){}
+  return [];
+}
+function saveSchInspectors(list){
+  localStorage.setItem(centerPrefix()+'sch_inspectors', JSON.stringify(normalizeNameList(list)));
+}
 function visInspectorYear(){
   return (typeof SCH_YEAR === 'number' && SCH_YEAR) ? SCH_YEAR : new Date().getFullYear();
 }
@@ -635,14 +779,57 @@ function getScheduleWorkersFromData(m){
   });
   return names;
 }
+function sameNameSet(a, b){
+  var left = normalizeNameList(a);
+  var right = normalizeNameList(b);
+  if(left.length !== right.length) return false;
+  var seen = {};
+  left.forEach(function(name){ seen[name] = true; });
+  return right.every(function(name){ return !!seen[name]; });
+}
+function getAutoSchInspectors(m){
+  return ensureVisInspectorsForMonth(m)
+    .filter(function(item){ return item && item.carry; })
+    .map(function(item){ return item.name; });
+}
+function getRequiredSchInspectorNames(m){
+  var required = getAutoSchInspectors(typeof m === 'number' ? m : schMonth).slice();
+  SCH_INSPECTOR_ENTRIES.forEach(function(item){
+    var name = item && typeof item.name === 'string' ? item.name.trim() : '';
+    if(name && required.indexOf(name) === -1) required.push(name);
+  });
+  return required;
+}
 function setActiveSchInspectors(m){
-  SCH_INSPECTOR_ENTRIES = ensureVisInspectorsForMonth(m);
-  var names = SCH_INSPECTOR_ENTRIES.map(function(item){ return item.name; });
-  getScheduleWorkersFromData(m).forEach(function(name){
+  var baseNames = loadSchInspectors();
+  var scheduleNames = getScheduleWorkersFromData(m);
+  var surveyNames = Object.keys(loadSchLeaveSurvey(m));
+  var visNames = ensureVisInspectorsForMonth(m).map(function(item){ return item.name; });
+  var autoNames = getAutoSchInspectors(m);
+  if(baseNames.length && !scheduleNames.length && !surveyNames.length && sameNameSet(baseNames, visNames)){
+    baseNames = [];
+    saveSchInspectors(baseNames);
+  }
+  var manualNames = baseNames.filter(function(name){
+    return autoNames.indexOf(name) === -1;
+  });
+  if(manualNames.length !== baseNames.length){
+    saveSchInspectors(manualNames);
+  }
+  SCH_INSPECTOR_ENTRIES = manualNames.map(function(name){
+    return {name:name};
+  });
+  var names = autoNames.slice();
+  manualNames.forEach(function(name){
+    if(names.indexOf(name) === -1) names.push(name);
+  });
+  surveyNames.forEach(function(name){
+    if(names.indexOf(name) === -1) names.push(name);
+  });
+  scheduleNames.forEach(function(name){
     if(names.indexOf(name) === -1) names.push(name);
   });
   SCH_INSPECTORS = names;
-  saveSchInspectors(SCH_INSPECTORS);
   return SCH_INSPECTORS;
 }
 function saveVisInspectorsForMonth(m, list){
@@ -678,7 +865,7 @@ function buildVisConfigPayload(){
   return {
     ships:SHIPS,
     inspectors:VIS_INSPECTORS,
-    schInspectors:SCH_INSPECTORS,
+    schInspectors:SCH_INSPECTOR_ENTRIES.map(function(item){ return item.name; }),
     visInspectorMonths:VIS_INSPECTOR_MONTHS
   };
 }
@@ -836,7 +1023,7 @@ function applyInspectors(){
   var uniq = new Set(names);
   if(uniq.size !== names.length){ showToast('중복된 이름이 있습니다'); return; }
   saveVisInspectorsForMonth(curMonth, nextList);
-  if(typeof schMonth === 'number' && schMonth === curMonth) setActiveSchInspectors(schMonth);
+  if(typeof schMonth === 'number' && schMonth === curMonth) renderSchedule(schMonth);
   cloudUpsert(centerPrefix()+'vis_config', buildVisConfigPayload());
   closeInsModal();
   renderTable(curMonth);
@@ -846,11 +1033,32 @@ function applyInspectors(){
 /* ── 근무표 인원 모달 ── */
 function openSchInsModal(){
   setActiveSchInspectors(schMonth);
-  modalSchIns = SCH_INSPECTORS.slice();
+  modalSchIns = SCH_INSPECTOR_ENTRIES.map(function(item){ return item.name; });
   renderSchInsList();
   document.getElementById('schInsModal').classList.add('open');
 }
 function closeSchInsModal(){ document.getElementById('schInsModal').classList.remove('open'); }
+
+function updateSchLeaveSurveyMonthNote(m){
+  var note = document.getElementById('schSurveyMonthNote');
+  if(note) note.textContent = '2026년 ' + m + '월 희망 휴무를 표시하면 근무표 휴무 칸에 자동 반영됩니다.';
+}
+
+function updateSchLeaveSurveyMonthNote(m){
+  var note = document.getElementById('schSurveyMonthNote');
+  if(note) note.textContent = '2026년 ' + m + '월 조사표입니다. 한 번 누르면 1(휴무), 다시 누르면 연가, 한 번 더 누르면 해제됩니다.';
+}
+
+function openSchLeaveSurveyModal(){
+  setActiveSchLeaveSurvey(schMonth);
+  updateSchLeaveSurveyMonthNote(schMonth);
+  renderSchLeaveSurvey(schMonth, collectSchData(schMonth), SCH_LEAVE_SURVEY);
+  document.getElementById('schSurveyModal').classList.add('open');
+}
+
+function closeSchLeaveSurveyModal(){
+  document.getElementById('schSurveyModal').classList.remove('open');
+}
 
 function renderSchInsList(){
   var ul = document.getElementById('schInsList');
@@ -883,7 +1091,9 @@ function deleteSchInspector(idx){
 
 function addSchInspector(){
   var name = document.getElementById('newSchInsName').value.trim();
+  var autoNames = getAutoSchInspectors(schMonth);
   if(!name){ document.getElementById('newSchInsName').focus(); return; }
+  if(autoNames.indexOf(name) !== -1){ showToast('이월 인원은 자동 포함됩니다'); return; }
   if(modalSchIns.indexOf(name) !== -1){ showToast('이미 등록된 이름입니다'); return; }
   modalSchIns.push(name);
   document.getElementById('newSchInsName').value = '';
@@ -892,10 +1102,18 @@ function addSchInspector(){
 
 function applySchInspectors(){
   var names = modalSchIns.map(function(n){return typeof n==='string'?n.trim():'';});
+  var autoNames = getAutoSchInspectors(schMonth);
   if(names.some(function(n){return !n;})){ showToast('이름을 모두 입력해주세요'); return; }
   var uniq = new Set(names);
   if(uniq.size !== names.length){ showToast('중복된 이름이 있습니다'); return; }
-  saveSharedInspectorsForMonth(schMonth, names);
+  var manualNames = normalizeNameList(names).filter(function(name){
+    return autoNames.indexOf(name) === -1;
+  });
+  SCH_INSPECTOR_ENTRIES = manualNames.map(function(name){
+    return {name:name};
+  });
+  saveSchInspectors(manualNames);
+  setActiveSchInspectors(schMonth);
   cloudUpsert(centerPrefix()+'vis_config', buildVisConfigPayload());
   closeSchInsModal();
   renderSchedule(schMonth);
@@ -1262,7 +1480,7 @@ function exportJSON(){
     month:curMonth,
     ships:SHIPS,
     inspectors:VIS_INSPECTORS,
-    schInspectors:SCH_INSPECTORS,
+    schInspectors:SCH_INSPECTOR_ENTRIES.map(function(item){ return item.name; }),
     visInspectorMonths:VIS_INSPECTOR_MONTHS,
     data:data
   };
@@ -1286,8 +1504,7 @@ function loadFromFile(e){
         applyVisInspectorConfig(obj.visInspectorMonths, obj.inspectors, m);
       }
       if(obj.schInspectors){
-        SCH_INSPECTORS=obj.schInspectors;
-        saveSchInspectors(SCH_INSPECTORS);
+        saveSchInspectors(obj.schInspectors);
       }
       setActiveSchInspectors(schMonth);
       localStorage.setItem(stKey(m),JSON.stringify(obj.data));
@@ -1585,8 +1802,7 @@ async function initSync(){
       applyVisInspectorConfig(cfg.visInspectorMonths, cfg.inspectors, curMonth);
     }
     if(cfg.schInspectors){
-      SCH_INSPECTORS=cfg.schInspectors;
-      saveSchInspectors(SCH_INSPECTORS);
+      saveSchInspectors(cfg.schInspectors);
     }
     setActiveSchInspectors(schMonth);
   }
@@ -1634,21 +1850,60 @@ var SCH_SLOTS = {
 function getSlots(){ return SCH_SLOTS[CENTER] || SCH_SLOTS.jindo; }
 
 /* 휴무 칸 수 = 전체 인원 수 */
-function getHuumuCount(){ return Math.max(1, SCH_INSPECTORS.length); }
+function getHuumuCount(){ return Math.max(1, SCH_INSPECTORS.length - getSlots().length); }
+
+function getSchTableLayout(slots, offCount){
+  var isNamgang = CENTER === 'namgang';
+  var wrap = document.querySelector('#page-schedule .sch-table-wrap');
+  var available = wrap ? wrap.clientWidth - 4 : window.innerWidth - 280;
+  var flexCount = slots.length + offCount;
+  var dayWidth = isNamgang ? 42 : 46;
+  var dowWidth = isNamgang ? 40 : 44;
+  var checkWidth = isNamgang ? 44 : 52;
+  var noteWidth = isNamgang ? 94 : 122;
+  var preferredColWidth = isNamgang ? 84 : 108;
+  var minColWidth = isNamgang ? 72 : 88;
+  var fixedWidth = dayWidth + dowWidth + checkWidth;
+  var colWidth = Math.floor((available - fixedWidth - noteWidth) / Math.max(1, flexCount));
+
+  colWidth = Math.min(colWidth, preferredColWidth);
+  colWidth = Math.max(minColWidth, colWidth);
+
+  var totalWidth = fixedWidth + noteWidth + (flexCount * colWidth);
+  var compact = isNamgang || totalWidth > available;
+  return {
+    dayWidth:dayWidth,
+    dowWidth:dowWidth,
+    colWidth:colWidth,
+    noteWidth:noteWidth,
+    checkWidth:checkWidth,
+    tableWidth:totalWidth,
+    compact:compact
+  };
+}
 
 function buildSchTable(){
   var slots = getSlots();
   var n = getHuumuCount();
+  var layout = getSchTableLayout(slots, n);
   var cg = document.getElementById('schColgroup');
   var thead = document.getElementById('schThead');
-  if(!cg || !thead) return;
-  var cgHtml = '<col style="width:46px"><col style="width:44px">';
-  slots.forEach(function(){ cgHtml += '<col style="width:160px">'; });
-  for(var j=0;j<n;j++) cgHtml += '<col style="width:160px">';
+  var table = document.getElementById('schTable');
+  var wrap = table ? table.closest('.sch-table-wrap') : null;
+  if(!cg || !thead || !table) return;
+  var cgHtml = '<col style="width:'+layout.dayWidth+'px"><col style="width:'+layout.dowWidth+'px">';
+  slots.forEach(function(){ cgHtml += '<col style="width:'+layout.colWidth+'px">'; });
+  for(var j=0;j<n;j++) cgHtml += '<col style="width:'+layout.colWidth+'px">';
+  cgHtml += '<col style="width:'+layout.noteWidth+'px">';
+  cgHtml += '<col style="width:'+layout.checkWidth+'px">';
   cg.innerHTML = cgHtml;
+  table.style.minWidth = layout.tableWidth + 'px';
+  if(wrap) wrap.classList.toggle('sch-fit-screen', layout.compact);
   var thHtml = '<tr><th rowspan="2">날짜</th><th rowspan="2">요일</th>';
   thHtml += '<th colspan="'+slots.length+'" style="border-bottom:1px solid var(--border2)">'+centerLabel()+'</th>';
   thHtml += '<th colspan="'+n+'" rowspan="2">휴무</th>';
+  thHtml += '<th rowspan="2">비고</th>';
+  thHtml += '<th rowspan="2">확인</th>';
   thHtml += '</tr><tr>';
   slots.forEach(function(s){ thHtml += '<th>'+s.label+'</th>'; });
   thHtml += '</tr>';
@@ -1661,6 +1916,7 @@ function defaultSchData(m){
     d[i]={};
     slots.forEach(function(s){ d[i][s.key]={worker:'',leave:false}; });
     for(var j=1;j<=n;j++) d[i]['h'+j]={worker:''};
+    d[i].note = '';
   }
   return d;
 }
@@ -1668,6 +1924,423 @@ function defaultSchData(m){
 function loadSchData(m){
   try{ var r=localStorage.getItem(schStKey(m)); if(r) return JSON.parse(r); }catch(e){}
   return defaultSchData(m);
+}
+
+function schLeaveSurveyKey(m){ return centerPrefix()+'vis_sch_leave_survey_2026_'+m; }
+
+function normalizeSchLeaveSurveyState(value){
+  if(value === 2 || value === '2' || value === 'leave' || value === '연' || value === '연가') return 2;
+  if(value === 1 || value === '1' || value === true || value === 'off') return 1;
+  return 0;
+}
+
+function normalizeSchLeaveSurvey(raw){
+  var out = {};
+  if(!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  Object.keys(raw).forEach(function(name){
+    var cleanName = String(name).trim();
+    if(!cleanName) return;
+    var src = raw[name];
+    var days = {};
+    if(Array.isArray(src)){
+      src.forEach(function(day){
+        var n = parseInt(day, 10);
+        if(n >= 1 && n <= 31) days[n] = 1;
+      });
+    } else if(src && typeof src === 'object'){
+      Object.keys(src).forEach(function(day){
+        var n = parseInt(day, 10);
+        var state = normalizeSchLeaveSurveyState(src[day]);
+        if(n >= 1 && n <= 31 && state) days[n] = state;
+      });
+    }
+    out[cleanName] = days;
+  });
+  return out;
+}
+
+function loadSchLeaveSurvey(m){
+  try{
+    var raw = localStorage.getItem(schLeaveSurveyKey(m));
+    if(raw) return normalizeSchLeaveSurvey(JSON.parse(raw));
+  }catch(e){}
+  return {};
+}
+
+function cloneSchLeaveSurvey(survey){
+  return normalizeSchLeaveSurvey(JSON.parse(JSON.stringify(survey || {})));
+}
+
+function saveSchLeaveSurvey(m, survey){
+  localStorage.setItem(schLeaveSurveyKey(m), JSON.stringify(normalizeSchLeaveSurvey(survey)));
+}
+
+function setActiveSchLeaveSurvey(m){
+  SCH_LEAVE_SURVEY = loadSchLeaveSurvey(m);
+  return SCH_LEAVE_SURVEY;
+}
+
+function surveyState(name, day, survey){
+  survey = survey || SCH_LEAVE_SURVEY;
+  return normalizeSchLeaveSurveyState(survey[name] && survey[name][day]);
+}
+
+function surveyMarked(name, day, survey){
+  return surveyState(name, day, survey) > 0;
+}
+
+function surveyNamesForDay(day, survey, stateFilter){
+  survey = survey || SCH_LEAVE_SURVEY;
+  var names = [];
+  Object.keys(survey).forEach(function(name){
+    var state = surveyState(name, day, survey);
+    if(!state) return;
+    if(stateFilter && state !== stateFilter) return;
+    names.push(name);
+  });
+  return names;
+}
+
+function getScheduleDisplayNames(data, survey){
+  var names = SCH_INSPECTORS.slice();
+  Object.keys(survey || {}).forEach(function(name){
+    if(names.indexOf(name) === -1) names.push(name);
+  });
+  var workerNames = data ? getScheduleWorkersFromScheduleData(data) : getScheduleWorkersFromData(schMonth);
+  workerNames.forEach(function(name){
+    if(names.indexOf(name) === -1) names.push(name);
+  });
+  return sortScheduleNames(names);
+}
+
+function getScheduleWorkersFromScheduleData(data){
+  var names = [], seen = {};
+  Object.keys(data || {}).forEach(function(dayKey){
+    var row = data[dayKey] || {};
+    Object.keys(row).forEach(function(slotKey){
+      var worker = row[slotKey] && typeof row[slotKey].worker === 'string' ? row[slotKey].worker.trim() : '';
+      if(!worker || seen[worker]) return;
+      seen[worker] = true;
+      names.push(worker);
+    });
+  });
+  return names;
+}
+
+function sortScheduleNames(names){
+  var order = {};
+  SCH_INSPECTORS.forEach(function(name, idx){ order[name] = idx; });
+  return names.slice().sort(function(a, b){
+    var ai = Object.prototype.hasOwnProperty.call(order, a) ? order[a] : 9999;
+    var bi = Object.prototype.hasOwnProperty.call(order, b) ? order[b] : 9999;
+    if(ai !== bi) return ai - bi;
+    return a.localeCompare(b, 'ko');
+  });
+}
+
+function getScheduleRowCheck(row, slots){
+  var requiredNames = getRequiredSchInspectorNames();
+  var seen = {};
+  var assigned = [];
+  var duplicates = [];
+  var duplicateSeen = {};
+  function collectWorker(worker){
+    if(typeof worker !== 'string') return;
+    worker = worker.trim();
+    if(!worker) return;
+    if(seen[worker]){
+      if(!duplicateSeen[worker]){
+        duplicateSeen[worker] = true;
+        duplicates.push(worker);
+      }
+      return;
+    }
+    seen[worker] = true;
+    assigned.push(worker);
+  }
+
+  slots.forEach(function(s){
+    collectWorker(row[s.key] && row[s.key].worker);
+  });
+  for(var j=1; j<=getHuumuCount(); j++){
+    collectWorker(row['h'+j] && row['h'+j].worker);
+  }
+
+  var missing = requiredNames.filter(function(name){ return !seen[name]; });
+  var extra = assigned.filter(function(name){ return requiredNames.indexOf(name) === -1; });
+  var ok = requiredNames.length > 0 && !missing.length && !duplicates.length && !extra.length && assigned.length === requiredNames.length;
+  var parts = [];
+  if(!requiredNames.length) parts.push('근무표 인원을 먼저 등록하세요');
+  if(missing.length) parts.push('미입력: ' + missing.join(', '));
+  if(duplicates.length) parts.push('중복: ' + duplicates.join(', '));
+  if(extra.length) parts.push('목록 외: ' + extra.join(', '));
+
+  return {
+    text: ok ? 'O' : 'X',
+    className: ok ? 'ok' : (requiredNames.length ? 'bad' : 'empty'),
+    title: ok ? '모든 근무표 인원이 1회씩 들어갔습니다' : parts.join(' / ')
+  };
+}
+
+function collectScheduleRowFromDom(d){
+  var slots = getSlots();
+  var row = {};
+  slots.forEach(function(s){
+    var sel = document.getElementById('sch_'+s.key+'_'+d);
+    var btn = document.getElementById('sch_'+s.key+'_'+d+'_lv');
+    row[s.key] = {
+      worker:sel ? sel.value : '',
+      leave:btn ? btn.classList.contains('active') : false
+    };
+  });
+  for(var j=1; j<=getHuumuCount(); j++){
+    var offSel = document.getElementById('sch_h'+j+'_'+d);
+    row['h'+j] = {worker:offSel ? offSel.value : ''};
+  }
+  return row;
+}
+
+function updateScheduleRowCheck(d){
+  var cell = document.getElementById('sch_check_'+d);
+  if(!cell) return;
+  var rowCheck = getScheduleRowCheck(collectScheduleRowFromDom(d), getSlots());
+  cell.innerHTML = '<div class="sch-check-mark '+rowCheck.className+'" title="'+escHtml(rowCheck.title)+'">'+rowCheck.text+'</div>';
+}
+
+function applySchLeaveSurveyToData(m, data, survey, prevSurvey){
+  survey = survey || SCH_LEAVE_SURVEY;
+  prevSurvey = prevSurvey || {};
+  var slots = getSlots();
+  var leaveKeys = slots.filter(function(s){ return s.leave; }).map(function(s){ return s.key; });
+  var n = getHuumuCount();
+  var days = DAYS_IN[m] || 31;
+  for(var d=1; d<=days; d++){
+    var row = data[d] || {};
+    slots.forEach(function(s){ if(!row[s.key]) row[s.key] = {worker:'', leave:false}; });
+    for(var j=1; j<=n; j++){ if(!row['h'+j]) row['h'+j] = {worker:''}; }
+    if(typeof row.note !== 'string') row.note = row.note ? String(row.note) : '';
+
+    var wanted = sortScheduleNames(surveyNamesForDay(d, survey, 1));
+    var prevAuto = surveyNamesForDay(d, prevSurvey, 1);
+    var existing = [];
+    for(var k=1; k<=n; k++){
+      var existingWorker = row['h'+k] && typeof row['h'+k].worker === 'string' ? row['h'+k].worker.trim() : '';
+      if(existingWorker && existing.indexOf(existingWorker) === -1) existing.push(existingWorker);
+    }
+    var manualExisting = existing.filter(function(name){
+      return prevAuto.indexOf(name) === -1;
+    });
+    var merged = wanted.concat(manualExisting.filter(function(name){ return wanted.indexOf(name) === -1; }));
+    var offSet = {};
+    merged.forEach(function(name){ offSet[name] = true; });
+    var leaveWanted = sortScheduleNames(surveyNamesForDay(d, survey, 2));
+    var prevAutoLeave = surveyNamesForDay(d, prevSurvey, 2);
+    var leaveAssignments = {};
+    var assignedLeave = {};
+
+    leaveKeys.forEach(function(key){
+      var cell = row[key] || {worker:'', leave:false};
+      if(cell.leave && cell.worker && prevAutoLeave.indexOf(cell.worker) === -1){
+        leaveAssignments[key] = {worker:cell.worker, leave:true};
+        assignedLeave[cell.worker] = true;
+      }
+    });
+
+    leaveKeys.forEach(function(key){
+      if(leaveAssignments[key]) return;
+      var cell = row[key] || {worker:'', leave:false};
+      if(cell.leave && cell.worker && leaveWanted.indexOf(cell.worker) !== -1 && !assignedLeave[cell.worker]){
+        leaveAssignments[key] = {worker:cell.worker, leave:true};
+        assignedLeave[cell.worker] = true;
+      }
+    });
+
+    leaveWanted.forEach(function(name){
+      if(assignedLeave[name]) return;
+      var openKey = leaveKeys.find(function(key){ return !leaveAssignments[key]; });
+      if(!openKey) return;
+      leaveAssignments[openKey] = {worker:name, leave:true};
+      assignedLeave[name] = true;
+    });
+
+    slots.forEach(function(s){
+      var cell = row[s.key] || {worker:'', leave:false};
+      if(leaveAssignments[s.key]){
+        row[s.key] = leaveAssignments[s.key];
+      } else if(cell.worker && (offSet[cell.worker] || assignedLeave[cell.worker])){
+        row[s.key] = {worker:'', leave:false};
+      } else if(cell.leave && cell.worker && prevAutoLeave.indexOf(cell.worker) !== -1){
+        row[s.key] = {worker:'', leave:false};
+      } else {
+        row[s.key] = {worker:cell.worker || '', leave:false};
+      }
+    });
+
+    for(var h=1; h<=n; h++){
+      row['h'+h] = {worker: merged[h-1] || ''};
+    }
+    data[d] = row;
+  }
+  return data;
+}
+
+function persistSchLeaveSurveyToSchedule(m, prevSurvey){
+  setActiveSchInspectors(m);
+  setActiveSchLeaveSurvey(m);
+  var data = applySchLeaveSurveyToData(m, loadSchData(m), SCH_LEAVE_SURVEY, prevSurvey);
+  localStorage.setItem(schStKey(m), JSON.stringify(data));
+  return data;
+}
+
+function toggleSchLeaveSurvey(name, day){
+  setActiveSchLeaveSurvey(schMonth);
+  var prevSurvey = cloneSchLeaveSurvey(SCH_LEAVE_SURVEY);
+  if(!SCH_LEAVE_SURVEY[name]) SCH_LEAVE_SURVEY[name] = {};
+  var nextState = surveyState(name, day, SCH_LEAVE_SURVEY) + 1;
+  if(nextState > 2) nextState = 0;
+  if(nextState) SCH_LEAVE_SURVEY[name][day] = nextState;
+  else delete SCH_LEAVE_SURVEY[name][day];
+  if(!Object.keys(SCH_LEAVE_SURVEY[name]).length) delete SCH_LEAVE_SURVEY[name];
+  saveSchLeaveSurvey(schMonth, SCH_LEAVE_SURVEY);
+  persistSchLeaveSurveyToSchedule(schMonth, prevSurvey);
+  renderSchedule(schMonth);
+}
+
+function clearSchLeaveSurvey(m){
+  if(!confirm(m+'월 휴무 조사표 표시를 초기화하시겠습니까?')) return;
+  var prevSurvey = cloneSchLeaveSurvey(loadSchLeaveSurvey(m));
+  SCH_LEAVE_SURVEY = {};
+  saveSchLeaveSurvey(m, SCH_LEAVE_SURVEY);
+  persistSchLeaveSurveyToSchedule(m, prevSurvey);
+  renderSchedule(m);
+}
+
+function renderSchLeaveSurvey(m, data, survey){
+  survey = survey || SCH_LEAVE_SURVEY;
+  var table = document.getElementById('schSurveyTable');
+  if(!table) return;
+  updateSchLeaveSurveyMonthNote(m);
+  var days = DAYS_IN[m] || 31;
+  var names = getScheduleDisplayNames(data, survey);
+  if(SCH_FOCUS_NAME && names.indexOf(SCH_FOCUS_NAME) === -1) SCH_FOCUS_NAME = '';
+  var html = '<thead><tr><th class="sch-survey-name" rowspan="2">이름</th>';
+  for(var d=1; d<=days; d++){
+    html += '<th class="sch-survey-head-day'+((schIsWeekend(m,d)||schIsHoliday(m,d))?' sch-survey-we':'')+'">'+d+'</th>';
+  }
+  html += '<th class="sch-survey-total" rowspan="2">합계</th></tr><tr>';
+  for(var w=1; w<=days; w++){
+    html += '<th class="sch-survey-head-dow'+((schIsWeekend(m,w)||schIsHoliday(m,w))?' sch-survey-we':'')+'">'+schDOW(m,w)+'</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  names.forEach(function(name){
+    var total = 0;
+    html += '<tr><td class="sch-survey-name">'+escHtml(name)+'</td>';
+    for(var d=1; d<=days; d++){
+      var state = surveyState(name, d, survey);
+      var active = state > 0;
+      if(active) total++;
+      var label = state === 2 ? '연' : (state === 1 ? '1' : '');
+      var stateClass = state === 2 ? ' leave' : '';
+      html += '<td class="'+((schIsWeekend(m,d)||schIsHoliday(m,d))?' sch-survey-we':'')+'">'+
+        '<button type="button" class="sch-survey-btn'+(active?' active':'')+stateClass+'" data-survey-name="'+escHtml(name)+'" data-survey-day="'+d+'">'+label+'</button></td>';
+    }
+    html += '<td class="sch-survey-total">'+total+'</td></tr>';
+  });
+
+  html += '</tbody><tfoot><tr><td class="sch-survey-name sch-survey-foot">일별</td>';
+  for(var c=1; c<=days; c++){
+    html += '<td class="sch-survey-foot'+((schIsWeekend(m,c)||schIsHoliday(m,c))?' sch-survey-we':'')+'">'+surveyNamesForDay(c, survey).length+'</td>';
+  }
+  html += '<td class="sch-survey-total sch-survey-foot">'+names.reduce(function(sum, name){
+    return sum + Object.keys(survey[name] || {}).length;
+  }, 0)+'</td></tr></tfoot>';
+  table.innerHTML = html;
+
+  table.querySelectorAll('[data-survey-name]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      toggleSchLeaveSurvey(this.dataset.surveyName, parseInt(this.dataset.surveyDay, 10));
+    });
+  });
+}
+
+function toggleSchFocusName(name){
+  SCH_FOCUS_NAME = SCH_FOCUS_NAME === name ? '' : name;
+  renderSchLeaveStats(schMonth, collectSchData(schMonth), SCH_LEAVE_SURVEY);
+  applySchFocusHighlight();
+}
+
+function applySchFocusHighlight(){
+  document.querySelectorAll('#schTbody tr').forEach(function(tr){
+    var rowHit = false;
+    tr.classList.remove('sch-focus-row');
+    tr.querySelectorAll('td.sch-focus-cell').forEach(function(td){
+      td.classList.remove('sch-focus-cell');
+    });
+    tr.querySelectorAll('select.sch-worker-sel').forEach(function(sel){
+      var td = sel.closest('td');
+      if(!td) return;
+      var active = !!SCH_FOCUS_NAME && sel.value === SCH_FOCUS_NAME;
+      td.classList.toggle('sch-focus-cell', active);
+      if(active) rowHit = true;
+    });
+    tr.classList.toggle('sch-focus-row', rowHit);
+  });
+}
+
+function renderSchLeaveStats(m, data, survey){
+  survey = survey || SCH_LEAVE_SURVEY;
+  var tbody = document.getElementById('schStatsTbody');
+  var tfoot = document.getElementById('schStatsTfoot');
+  if(!tbody || !tfoot) return;
+  var names = getScheduleDisplayNames(data, survey);
+  var stats = {};
+  names.forEach(function(name){ stats[name] = {wanted:0, off:0, leave:0}; });
+  Object.keys(survey).forEach(function(name){
+    if(!stats[name]) stats[name] = {wanted:0, off:0, leave:0};
+    Object.keys(survey[name] || {}).forEach(function(day){
+      if(survey[name][day]) stats[name].wanted++;
+    });
+  });
+
+  var days = DAYS_IN[m] || 31;
+  var slots = getSlots();
+  for(var d=1; d<=days; d++){
+    var row = data[d] || {};
+    slots.forEach(function(s){
+      var cell = row[s.key] || {};
+      if(cell.worker){
+        if(!stats[cell.worker]) stats[cell.worker] = {wanted:0, off:0, leave:0};
+        if(cell.leave) stats[cell.worker].leave++;
+      }
+    });
+    for(var j=1; j<=getHuumuCount(); j++){
+      var worker = row['h'+j] && row['h'+j].worker ? row['h'+j].worker : '';
+      if(worker){
+        if(!stats[worker]) stats[worker] = {wanted:0, off:0, leave:0};
+        stats[worker].off++;
+      }
+    }
+  }
+
+  var bodyHtml = '';
+  var sumWanted = 0, sumOff = 0, sumLeave = 0;
+  names.forEach(function(name){
+    var item = stats[name] || {wanted:0, off:0, leave:0};
+    sumWanted += item.wanted;
+    sumOff += item.off;
+    sumLeave += item.leave;
+    var rowClass = SCH_FOCUS_NAME === name ? ' class="active"' : '';
+    bodyHtml += '<tr'+rowClass+'><td><button type="button" class="sch-name-btn'+(SCH_FOCUS_NAME===name?' active':'')+'" data-sch-focus-name="'+escHtml(name)+'">'+escHtml(name)+'</button></td><td>'+item.wanted+'</td><td>'+item.off+'</td><td>'+item.leave+'</td></tr>';
+  });
+  if(!bodyHtml) bodyHtml = '<tr><td colspan="4" style="color:var(--text3);padding:14px">인원을 등록하면 휴무 현황이 표시됩니다</td></tr>';
+  tbody.innerHTML = bodyHtml;
+  tbody.querySelectorAll('[data-sch-focus-name]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      toggleSchFocusName(this.dataset.schFocusName);
+    });
+  });
+  tfoot.innerHTML = '<tr><td>합계</td><td>'+sumWanted+'</td><td>'+sumOff+'</td><td>'+sumLeave+'</td></tr>';
 }
 
 /* 공휴일 — API 자동 로드, 연도별 캐시 */
@@ -1760,11 +2433,14 @@ async function changeSchMonth(m){
   schMonth=m;
   document.querySelectorAll('#schMonthTabs .month-tab').forEach(function(b,i){ b.classList.toggle('active',i+1===m); });
   renderSchedule(m);
-  var row=await cloudFetch(schStKey(m));
-  if(row && row.payload){
-    localStorage.setItem(schStKey(m),JSON.stringify(row.payload));
-    renderSchedule(m);
+  var rows=await Promise.all([cloudFetch(schStKey(m)), cloudFetch(schLeaveSurveyKey(m))]);
+  if(rows[0] && rows[0].payload){
+    localStorage.setItem(schStKey(m),JSON.stringify(rows[0].payload));
   }
+  if(rows[1] && rows[1].payload){
+    saveSchLeaveSurvey(m, rows[1].payload);
+  }
+  renderSchedule(m);
 }
 
 function schHuumuCellHtml(d,row){
@@ -1776,7 +2452,7 @@ function schHuumuCellHtml(d,row){
     var opts=SCH_INSPECTORS.map(function(nm){
       return '<option value="'+escHtml(nm)+'"'+(val.worker===nm?' selected':'')+'>'+escHtml(nm)+'</option>';
     }).join('');
-    html+='<td style="background:#f7f6f2"><div class="sch-cell"><select class="sch-worker-sel" id="sch_'+key+'_'+d+'" onchange="updateSchHuumu('+d+')" style="background:#f0ede6"><option value=""></option>'+opts+'</select></div></td>';
+    html+='<td class="sch-off-slot"><div class="sch-cell sch-cell-off"><select class="sch-worker-sel" id="sch_'+key+'_'+d+'" onchange="updateSchHuumu('+d+')"><option value=""></option>'+opts+'</select></div></td>';
   }
   return html;
 }
@@ -1801,17 +2477,21 @@ function schCellHtml(slot,d,val,hasLeave){
 
 function renderSchedule(m){
   setActiveSchInspectors(m);
+  setActiveSchLeaveSurvey(m);
   buildSchTable();
   var slots=getSlots();
-  var data=loadSchData(m);
+  var data=applySchLeaveSurveyToData(m, loadSchData(m), SCH_LEAVE_SURVEY);
   var days=DAYS_IN[m]||31;
   var tbody=document.getElementById('schTbody');
   if(!tbody) return;
+  localStorage.setItem(schStKey(m),JSON.stringify(data));
   tbody.innerHTML='';
 
   for(var d=1;d<=days;d++){
     var row=data[d]||{};
     slots.forEach(function(s){ if(!row[s.key]) row[s.key]={worker:'',leave:false}; });
+    if(typeof row.note !== 'string') row.note = row.note ? String(row.note) : '';
+    var rowCheck = getScheduleRowCheck(row, slots);
     var tr=document.createElement('tr');
     var weekend=schIsWeekend(m,d);
     var sat=schIsSat(m,d);
@@ -1831,6 +2511,8 @@ function renderSchedule(m){
     var cellsHtml='';
     slots.forEach(function(s){ cellsHtml+=schCellHtml(s.key,d,row[s.key],s.leave); });
     cellsHtml+=schHuumuCellHtml(d,row);
+    cellsHtml+='<td><input class="note-in" type="text" id="sch_note_'+d+'" value="'+escHtml(row.note||'')+'"></td>';
+    cellsHtml+='<td class="sch-check-cell" id="sch_check_'+d+'"><div class="sch-check-mark '+rowCheck.className+'" title="'+escHtml(rowCheck.title)+'">'+rowCheck.text+'</div></td>';
 
     tr.innerHTML=
       '<td class="sch-day-num">'+d+'</td>'+
@@ -1838,6 +2520,9 @@ function renderSchedule(m){
 
     tbody.appendChild(tr);
   }
+  renderSchLeaveSurvey(m, data, SCH_LEAVE_SURVEY);
+  renderSchLeaveStats(m, data, SCH_LEAVE_SURVEY);
+  applySchFocusHighlight();
 }
 
 function toggleLeave(slot,d){
@@ -1846,6 +2531,9 @@ function toggleLeave(slot,d){
   if(!btn||!td) return;
   var active=btn.classList.toggle('active');
   td.classList.toggle('cell-leave',active);
+  updateScheduleRowCheck(d);
+  renderSchLeaveStats(schMonth, collectSchData(schMonth), SCH_LEAVE_SURVEY);
+  applySchFocusHighlight();
 }
 
 function updateSchHuumu(d){
@@ -1885,6 +2573,9 @@ function updateSchHuumu(d){
       opt.style.fontWeight = taken ? '600' : '';
     });
   });
+  updateScheduleRowCheck(d);
+  renderSchLeaveStats(schMonth, collectSchData(schMonth), SCH_LEAVE_SURVEY);
+  applySchFocusHighlight();
 }
 
 function collectSchData(m){
@@ -1903,6 +2594,7 @@ function collectSchData(m){
       var sel=document.getElementById('sch_h'+j+'_'+d);
       data[d]['h'+j]={worker:sel?sel.value:''};
     }
+    data[d].note = (document.getElementById('sch_note_'+d)||{}).value || '';
   }
   return data;
 }
@@ -1939,45 +2631,61 @@ async function syncToWorkWidget(m, schData){
     var usersData = await fetchWWState('users');
 
     var cName = centerLabel(); /* '진도' 또는 '남강' */
-    var centerId = 'auto-center-' + CENTER; /* 'auto-center-jindo' / 'auto-center-namgang' */
 
     /* ─── core 데이터 준비 ─── */
     var centers = (coreData && Array.isArray(coreData.centers)) ? JSON.parse(JSON.stringify(coreData.centers)) : [];
     var dispatchSites = (coreData && Array.isArray(coreData.dispatchSites)) ? JSON.parse(JSON.stringify(coreData.dispatchSites)) : [];
     var workTypes = (coreData && Array.isArray(coreData.workTypes)) ? JSON.parse(JSON.stringify(coreData.workTypes)) : [];
 
-    /* 센터 없으면 자동 생성 */
-    if(!centers.find(function(c){ return c.id === centerId; })){
-      centers.push({id: centerId, name: cName});
-    }
-
-    /* 슬롯별 근무유형 자동 생성 */
-    var slots = getSlots();
-    var slotColorMap = {a:4, b:0, c:6}; /* sky / rose / violet */
-    slots.forEach(function(s){
-      var wtId = 'auto-wt-'+CENTER+'-'+s.key;
-      if(!workTypes.find(function(w){ return w.id === wtId; })){
-        workTypes.push({
-          id: wtId,
-          centerId: centerId,
-          dispatchSiteId: 'dispatch-center',
-          label: s.key.toUpperCase()+'근무',
-          colorIdx: slotColorMap[s.key] !== undefined ? slotColorMap[s.key] : 4
-        });
+    /* ─── 진도/남강 dispatchSite를 이름으로 찾아 실제 centerId/centerName 확인 ─── */
+    var dispatchSite = dispatchSites.find(function(d){ return d.name === cName; });
+    var centerId, centerName, dispatchSiteId;
+    if(dispatchSite){
+      dispatchSiteId = dispatchSite.id;
+      centerId = dispatchSite.centerId;
+      var parentCenter = centers.find(function(c){ return c.id === centerId; });
+      centerName = parentCenter ? parentCenter.name : cName;
+    } else {
+      /* 기존 데이터가 없으면 자동 생성 */
+      centerId = 'auto-center-' + CENTER;
+      centerName = cName;
+      dispatchSiteId = 'auto-dispatch-' + CENTER;
+      if(!centers.find(function(c){ return c.id === centerId; })){
+        centers.push({id: centerId, name: cName});
       }
+      if(!dispatchSites.find(function(d){ return d.id === dispatchSiteId; })){
+        dispatchSites.push({id: dispatchSiteId, name: cName, centerId: centerId});
+      }
+    }
+
+    /* ─── 근무유형: 라벨로 기존 항목 찾거나 없으면 생성 ─── */
+    var slots = getSlots();
+    var slotColorMap = {a:4, b:0, c:6};
+
+    function findOrCreateWorkType(label, colorIdx){
+      /* 동일 centerId + dispatchSiteId에서 라벨 매칭 */
+      var found = workTypes.find(function(w){
+        return w.centerId === centerId && w.dispatchSiteId === dispatchSiteId && w.label === label;
+      });
+      if(found) return found.id;
+      /* centerId만 매칭 (dispatchSiteId 무관) */
+      found = workTypes.find(function(w){
+        return w.centerId === centerId && w.label === label;
+      });
+      if(found) return found.id;
+      /* 없으면 새로 생성 */
+      var newId = 'auto-wt-'+CENTER+'-'+label;
+      workTypes.push({id:newId, centerId:centerId, dispatchSiteId:dispatchSiteId, label:label, colorIdx:colorIdx});
+      return newId;
+    }
+
+    var slotTypeMap = {};
+    slots.forEach(function(s){
+      var label = '근무'+s.key.toUpperCase(); /* '근무A', '근무B', '근무C' */
+      slotTypeMap[s.key] = findOrCreateWorkType(label, slotColorMap[s.key] !== undefined ? slotColorMap[s.key] : 4);
     });
-
-    /* 휴무 유형 자동 생성 */
-    var offTypeId = 'auto-wt-'+CENTER+'-off';
-    if(!workTypes.find(function(w){ return w.id === offTypeId; })){
-      workTypes.push({id: offTypeId, centerId: centerId, dispatchSiteId: 'dispatch-center', label: '휴무', colorIdx: 7});
-    }
-
-    /* 연가 유형 자동 생성 */
-    var leaveTypeId = 'auto-wt-'+CENTER+'-leave';
-    if(!workTypes.find(function(w){ return w.id === leaveTypeId; })){
-      workTypes.push({id: leaveTypeId, centerId: centerId, dispatchSiteId: 'dispatch-center', label: '연가', colorIdx: 2});
-    }
+    var offTypeId = findOrCreateWorkType('휴무', 7);
+    var leaveTypeId = findOrCreateWorkType('연가', 2);
 
     /* ─── users 데이터 준비 ─── */
     var userProfiles = (usersData && usersData.userProfiles && typeof usersData.userProfiles==='object')
@@ -1987,7 +2695,7 @@ async function syncToWorkWidget(m, schData){
 
     /* userKey 생성: member:{센터명소문자}::{이름소문자} */
     function makeUserKey(name){
-      var nc = cName.trim().replace(/\s+/g,' ').toLowerCase();
+      var nc = centerName.trim().replace(/\s+/g,' ').toLowerCase();
       var nn = name.trim().replace(/\s+/g,' ').toLowerCase();
       return 'member:'+nc+'::'+nn;
     }
@@ -2000,9 +2708,9 @@ async function syncToWorkWidget(m, schData){
         userProfiles[key] = {
           name: name.trim(),
           centerId: centerId,
-          centerName: cName,
-          dispatchSiteId: 'dispatch-center',
-          dispatchSiteName: '센터',
+          centerName: centerName,
+          dispatchSiteId: dispatchSiteId,
+          dispatchSiteName: cName,
           profileUpdatedAt: Date.now()
         };
       }
@@ -2022,7 +2730,7 @@ async function syncToWorkWidget(m, schData){
         if(!cell.worker) return;
         var uKey = ensureUser(cell.worker);
         if(!uKey) return;
-        userSchedules[uKey][dateStr] = cell.leave ? leaveTypeId : 'auto-wt-'+CENTER+'-'+s.key;
+        userSchedules[uKey][dateStr] = cell.leave ? leaveTypeId : slotTypeMap[s.key];
       });
 
       /* 휴무 슬롯 */
@@ -2052,12 +2760,25 @@ async function syncToWorkWidget(m, schData){
   } catch(e){ console.error('syncToWorkWidget 오류:', e); return false; }
 }
 
-async function saveSchedule(){
+async function saveScheduleLegacy(){
   var data=collectSchData(schMonth);
   localStorage.setItem(schStKey(schMonth),JSON.stringify(data));
   var ok=await cloudUpsert(schStKey(schMonth),data);
   await syncToWorkWidget(schMonth, data);
   showToast(ok?'근무표 저장 및 동기화 완료':'근무표 저장 완료 (동기화 실패)');
+}
+
+async function saveSchedule(){
+  var data=collectSchData(schMonth);
+  saveSchLeaveSurvey(schMonth, SCH_LEAVE_SURVEY);
+  localStorage.setItem(schStKey(schMonth),JSON.stringify(data));
+  var results=await Promise.all([
+    cloudUpsert(schStKey(schMonth),data),
+    cloudUpsert(schLeaveSurveyKey(schMonth),SCH_LEAVE_SURVEY),
+    syncToWorkWidget(schMonth, data)
+  ]);
+  var ok=!!(results[0] && results[1] && results[2]);
+  showToast(ok?'근무표 저장 및 동기화 완료':'근무표 저장 완료 (일부 동기화 실패)');
 }
 
 async function downloadScheduleExcel(){
@@ -2071,7 +2792,8 @@ async function downloadScheduleExcel(){
   /* 열 인덱스: A=0,B=1,C=2... */
   function colL(i){ return String.fromCharCode(65+i); }
   /* 날짜=A(0), 요일=B(1), 슬롯=C~(2..2+n-1), 휴무=C(2+n)~(2+n+hn-1) */
-  var lastCol=colL(2+n+hn-1);
+  var noteCol=colL(2+n+hn);
+  var lastCol=noteCol;
 
   var wb=new ExcelJS.Workbook();
   var ws=wb.addWorksheet(m+'월 근무표');
@@ -2079,6 +2801,7 @@ async function downloadScheduleExcel(){
   var wsCols=[{width:7},{width:10}];
   slots.forEach(function(){ wsCols.push({width:18}); });
   for(var hh=0;hh<hn;hh++) wsCols.push({width:14});
+  wsCols.push({width:28});
   ws.columns=wsCols;
 
   var HDR_FILL={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0EDE6'}};
@@ -2100,13 +2823,21 @@ async function downloadScheduleExcel(){
   if(n>1) ws.mergeCells('C2:'+colL(2+n-1)+'2');
   /* 휴무 헤더: 행2~행3 머지, hn개 열 */
   var huumuStart=colL(2+n);
-  if(hn>1) ws.mergeCells(huumuStart+'2:'+lastCol+'3');
+  var huumuEnd=colL(2+n+hn-1);
+  if(hn>1) ws.mergeCells(huumuStart+'2:'+huumuEnd+'3');
   else ws.mergeCells(huumuStart+'2:'+huumuStart+'3');
+  ws.mergeCells(noteCol+'2:'+noteCol+'3');
 
   [['A2','날짜'],['B2','요일'],['C2',centerLabel()],[huumuStart+'2','휴무']].forEach(function(pair){
     var c=ws.getCell(pair[0]); c.value=pair[1];
     c.font=HDR_FONT; c.alignment=ALIGN; c.fill=HDR_FILL; c.border=BORDER;
   });
+  var noteHdr=ws.getCell(noteCol+'2');
+  noteHdr.value='비고';
+  noteHdr.font=HDR_FONT;
+  noteHdr.alignment=ALIGN;
+  noteHdr.fill=HDR_FILL;
+  noteHdr.border=BORDER;
   ws.getRow(2).height=20;
 
   /* 행3: 슬롯 소분류 헤더 */
@@ -2161,6 +2892,12 @@ async function downloadScheduleExcel(){
       hcell.font={size:10,name:'맑은 고딕'};
     }
 
+    var noteCell=ws.getCell(noteCol+rowIdx);
+    noteCell.value=r.note||'';
+    noteCell.alignment={horizontal:'left',vertical:'middle',wrapText:true};
+    noteCell.border=BORDER;
+    noteCell.fill=BG;
+    noteCell.font={size:10,name:'留묒? 怨좊뵓'};
     ws.getRow(rowIdx).height=18;
   }
 
@@ -2463,6 +3200,16 @@ loadHolidays(SCH_YEAR); /* API에서 당해연도 공휴일 로드 */
     localStorage.setItem(schStKey(schMonth),JSON.stringify(row.payload));
     renderSchedule(schMonth);
   }
+})();
+(async function(){
+  var rows=await Promise.all([cloudFetch(schStKey(schMonth)), cloudFetch(schLeaveSurveyKey(schMonth))]);
+  if(rows[0] && rows[0].payload){
+    localStorage.setItem(schStKey(schMonth),JSON.stringify(rows[0].payload));
+  }
+  if(rows[1] && rows[1].payload){
+    saveSchLeaveSurvey(schMonth, rows[1].payload);
+  }
+  renderSchedule(schMonth);
 })();
 </script>
 </body>
