@@ -176,7 +176,7 @@ document.getElementById("btn-autofill").addEventListener("click", ()=>{
       if(taskSel){ taskSel.value = session.task; taskSel.dataset.currentValue = session.task; }
     }
 
-    [[11, session.pilot],[12, session.pilot_license],[15, session.duration_min != null ? String(session.duration_min) : ""]].forEach(([idx, val])=>{
+    [[7, session.location_short],[11, session.pilot],[12, session.pilot_license],[15, session.duration_min != null ? String(session.duration_min) : ""]].forEach(([idx, val])=>{
       if(tds[idx] && val){
         tds[idx].textContent = val;
         tds[idx].classList.add("auto-filled");

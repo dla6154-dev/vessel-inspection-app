@@ -502,7 +502,15 @@
       </tr>
       <tr>
         <td class="label">비행장소</td>
-        <td><input type="text" id="f_location" data-sync="flight_location"></td>
+        <td>
+          <select id="f_location" data-sync="flight_location" style="width:100%;font-size:12px;text-align:left;">
+            <option value="">-- 선택하세요 --</option>
+            <option value="목포 연안여객터미널"   data-short="목포"   data-station="165">목포 연안여객터미널</option>
+            <option value="진도항 연안여객터미널"  data-short="진도항"  data-station="268">진도항 연안여객터미널</option>
+            <option value="흑산도 연안여객터미널"  data-short="흑산도"  data-station="169">흑산도 연안여객터미널</option>
+            <option value="영광 법성포 연안여객터미널" data-short="영광" data-station="252">영광 법성포 연안여객터미널</option>
+          </select>
+        </td>
         <td class="label">추진업무</td>
         <td>
           <select id="f_task" data-sync="flight_task" style="width:100%;font-size:12px;text-align:left;">
@@ -1175,10 +1183,15 @@ document.getElementById("f_date").value = new Date().toLocaleDateString("sv-SE")
 
 document.getElementById("btnAutoWeather").addEventListener("click", async () => {
   const msg = document.getElementById("autoWeatherMsg");
+  const locSel = document.getElementById("f_location");
+  const selOpt = locSel.options[locSel.selectedIndex];
+  const station = selOpt && selOpt.dataset.station ? selOpt.dataset.station : "268";
+  const locName = selOpt && selOpt.dataset.short ? selOpt.dataset.short : "진도군";
+  if(!locSel.value){ msg.textContent = "먼저 비행장소를 선택해 주세요."; msg.style.color = "#dc2626"; return; }
   msg.textContent = "불러오는 중...";
   msg.style.color = "#666";
   try {
-    const res = await fetch("https://mokpo-weather-dashboard.onrender.com/api/sfc/obs?stn=268");
+    const res = await fetch(`https://mokpo-weather-dashboard.onrender.com/api/sfc/obs?stn=${station}`);
     const d = await res.json();
     if (!d.ok) throw new Error(d.error || "오류");
     document.getElementById("f_wind").value = d.wind_range;
@@ -1188,7 +1201,7 @@ document.getElementById("btnAutoWeather").addEventListener("click", async () => 
       document.getElementById(id).dispatchEvent(new Event("input"))
     );
     const t = d.tm;
-    msg.textContent = `✓ ${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)} ${t.slice(8,10)}:00 진도군`;
+    msg.textContent = `✓ ${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)} ${t.slice(8,10)}:00 ${locName}`;
     msg.style.color = "#16a34a";
   } catch(e) {
     msg.textContent = "실패: " + e.message;
@@ -1250,24 +1263,28 @@ function validateRequired(fields){
 }
 
 function saveDroneSession(){
-  const startV = document.getElementById("f_start").value;
-  const endV   = document.getElementById("f_end").value;
-  const durEl  = document.getElementById("f_duration");
-  const durMin = durEl.value ? parseInt(durEl.value) : null;
+  const startV  = document.getElementById("f_start").value;
+  const endV    = document.getElementById("f_end").value;
+  const durEl   = document.getElementById("f_duration");
+  const durMin  = durEl.value ? parseInt(durEl.value) : null;
+  const locSel  = document.getElementById("f_location");
+  const selOpt  = locSel.options[locSel.selectedIndex];
+  const locShort = selOpt && selOpt.dataset.short ? selOpt.dataset.short : locSel.value;
   const session = {
-    date:          document.getElementById("f_date").value,
-    pilot:         getPilotName(),
-    pilot_license: getPilotLicense(),
-    location:      document.getElementById("f_location").value,
-    task:          document.getElementById("f_task").value,
-    category:      document.getElementById("f_category").value,
-    wind:          document.getElementById("f_wind").value,
-    visibility:    document.getElementById("f_visibility") ? document.getElementById("f_visibility").value : "",
-    temp:          document.getElementById("f_temp").value,
-    start:         startV,
-    end:           endV,
-    duration_min:  durMin,
-    aircraft:      document.getElementById("f_reg").value,
+    date:           document.getElementById("f_date").value,
+    pilot:          getPilotName(),
+    pilot_license:  getPilotLicense(),
+    location:       locSel.value,
+    location_short: locShort,
+    task:           document.getElementById("f_task").value,
+    category:       document.getElementById("f_category").value,
+    wind:           document.getElementById("f_wind").value,
+    visibility:     document.getElementById("f_visibility") ? document.getElementById("f_visibility").value : "",
+    temp:           document.getElementById("f_temp").value,
+    start:          startV,
+    end:            endV,
+    duration_min:   durMin,
+    aircraft:       document.getElementById("f_reg").value,
   };
   localStorage.setItem("drone_session", JSON.stringify(session));
 }
