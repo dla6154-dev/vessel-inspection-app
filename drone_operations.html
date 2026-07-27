@@ -330,32 +330,6 @@ document.getElementById("btn-validate").addEventListener("click", ()=>{
   });
 })();
 
-/* ── 페이지 로드 시 하드코딩 데이터 초기화 (category-select 포함 행만) ── */
-(function clearHardcodedData(){
-  document.querySelectorAll('select.category-select').forEach(catSel => {
-    const tr = catSel.closest('tr');
-    if(!tr) return;
-    tr.querySelectorAll('td').forEach(td => {
-      td.querySelectorAll('select').forEach(s => {
-        s.value = '';
-        if(s.dataset) s.dataset.currentValue = '';
-        s.querySelectorAll('option').forEach(opt => opt.removeAttribute('selected'));
-      });
-      if(!td.querySelector('select') && !td.querySelector('input')){
-        td.textContent = '';
-      }
-    });
-  });
-})();
-/* ── 페이지 첫 로드 시 세션 있으면 자동입력 ── */
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    try {
-      const session = localStorage.getItem('drone_session');
-      if(session) document.getElementById('btn-autofill').click();
-    } catch(e) {}
-  }, 150);
-});
 
 window.addEventListener("message", (e)=>{
   if(e.data && e.data.type === "drone_session_updated"){
@@ -396,6 +370,30 @@ window.addEventListener("message", (e)=>{
     });
   }
 })();
+
+/* ── 페이지 로드 완료 후: 데이터 초기화 + 세션 자동입력 ── */
+setTimeout(function(){
+  // 1) 하드코딩 데이터 초기화 (URL params IIFE 이후 실행)
+  document.querySelectorAll('select.category-select').forEach(function(catSel){
+    var tr = catSel.closest('tr');
+    if(!tr) return;
+    tr.querySelectorAll('td').forEach(function(td){
+      td.querySelectorAll('select').forEach(function(s){
+        s.value = '';
+        if(s.dataset) s.dataset.currentValue = '';
+        s.querySelectorAll('option').forEach(function(opt){ opt.removeAttribute('selected'); });
+      });
+      if(!td.querySelector('select') && !td.querySelector('input')){
+        td.textContent = '';
+      }
+    });
+  });
+  // 2) 세션이 있으면 자동입력 (첫 번째 빈 행에만)
+  try{
+    var session = localStorage.getItem('drone_session');
+    if(session) document.getElementById('btn-autofill').click();
+  }catch(e){}
+}, 0);
 </script>
 </body>
 </html>
