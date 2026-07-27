@@ -234,6 +234,40 @@ window.addEventListener("message", (e)=>{
     document.getElementById("btn-autofill").click();
   }
 });
+
+/* ── URL 파라미터로 연도/월 적용 ── */
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  const year  = params.get("year")  || "2026";
+  const month = params.get("month") || "6";
+  const monthNum = parseInt(month);
+  const MONTHS = ["","1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+
+  // 제목 업데이트
+  document.title = `${year}년 ${MONTHS[monthNum]} 무인비행장치 운용 실적 자료(목포운항관리센터)`;
+
+  // 표 안의 연도/월 텍스트 교체 (헤더 셀 등)
+  document.querySelectorAll("td, th").forEach(el=>{
+    if(el.children.length === 0){
+      el.textContent = el.textContent
+        .replace(/20\d\d년\s*\d+월/g, `${year}년 ${MONTHS[monthNum]}`);
+    }
+  });
+
+  // 이미 입력된 날짜 셀(활용일자 tds[2]) 중 이전 월 접두사를 현재 월로 교체
+  const oldMM = String(parseInt(params.get("_oldMonth")||"6")).padStart(2,"0");
+  const newMM = String(monthNum).padStart(2,"0");
+  const newYY = year.slice(2);
+  if(oldMM !== newMM){
+    document.querySelectorAll("select.category-select").forEach(catSel=>{
+      const tds = catSel.closest("tr").querySelectorAll("td");
+      const dc = tds[2];
+      if(dc && dc.textContent.trim().startsWith(oldMM+"-")){
+        dc.textContent = dc.textContent.replace(oldMM+"-", newMM+"-");
+      }
+    });
+  }
+})();
 </script>
 </body>
 </html>
