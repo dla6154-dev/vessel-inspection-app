@@ -1,5 +1,10 @@
+/*.html
+  Cache-Control: no-cache, must-revalidate
+
 /drone_forms.html
   X-Frame-Options: SAMEORIGIN
+  Cache-Control: no-cache, must-revalidate
 
 /drone_operations.html
   X-Frame-Options: SAMEORIGIN
+  Cache-Control: no-cache, must-revalidate
