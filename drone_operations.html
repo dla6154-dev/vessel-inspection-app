@@ -234,12 +234,12 @@ document.getElementById("btn-autofill").addEventListener("click", ()=>{
 
   const catSelects = getDataRows();
   let filled = 0;
-  catSelects.forEach(catSel => {
+  for(const catSel of catSelects){
     const row = catSel.dataset.row;
     const tds = getRowTds(catSel);
     const dateCell = tds[2];
     const isNew = !dateCell.textContent.trim();
-    if(!isNew) return;
+    if(!isNew) continue;
 
     dateCell.textContent = session.date || "";
     dateCell.classList.add("auto-filled");
@@ -274,7 +274,8 @@ document.getElementById("btn-autofill").addEventListener("click", ()=>{
     });
 
     filled++;
-  });
+    break;
+  }
 
   if(filled === 0) setMsg("빈 행이 없습니다. 기존 데이터가 있는 행은 건너뜁니다.", true);
   else setMsg(`${filled}개 행에 자동입력 완료. 빨간 칸을 직접 입력해 주세요.`, false);
