@@ -228,6 +228,12 @@ document.getElementById("btn-validate").addEventListener("click", ()=>{
   if(missingCount === 0) setMsg("모든 필수항목이 입력되었습니다 ✓", false);
   else setMsg(`미입력 필수항목 ${missingCount}개 — 빨간 칸을 확인해 주세요`, true);
 });
+
+window.addEventListener("message", (e)=>{
+  if(e.data && e.data.type === "drone_session_updated"){
+    document.getElementById("btn-autofill").click();
+  }
+});
 </script>
 </body>
 </html>

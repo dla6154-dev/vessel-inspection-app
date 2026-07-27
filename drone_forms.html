@@ -1364,7 +1364,7 @@ async function saveMaster(){
     await loadFlightLog();
     try{
       const f = document.getElementById("tab3Frame");
-      if(f && f.contentWindow) f.contentWindow.document.getElementById("btn-autofill").click();
+      if(f && f.contentWindow) f.contentWindow.postMessage({type:"drone_session_updated"},"*");
     }catch(e){}
     setStatus(statusEl, "저장 완료 — 점검 체크리스트와 비행 기록부에 모두 반영되었습니다", "ok");
     setTimeout(()=>{
