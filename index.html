@@ -429,10 +429,10 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:tr
       <span class="sidenav-icon">&#128202;</span>
       <span>출항 전 점검 횟수</span>
     </button>
-    <a class="sidenav-item" href="drone_forms.html" style="text-decoration:none;">
+    <button class="sidenav-item" id="nav-drone" onclick="showPage('drone')">
       <span class="sidenav-icon">🚁</span>
       <span>드론 전자서식</span>
-    </a>
+    </button>
     <button class="sidenav-item" id="nav-schedule" onclick="showPage('schedule')">
       <span class="sidenav-icon">&#128203;</span>
       <span>근무표 작성</span>
@@ -497,6 +497,10 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:tr
   <div class="footer">로컬 + Supabase 클라우드 이중 저장 · JSON 내보내기로 추가 백업 가능</div>
 </div><!-- /shell -->
 </div><!-- /page-inspection -->
+
+<div id="page-drone" class="page" style="padding:0;height:calc(100vh - 48px);">
+  <iframe id="droneFrame" src="" style="width:100%;height:100%;border:none;display:block;"></iframe>
+</div>
 
 <div id="page-schedule" class="page">
 <div class="shell">
@@ -3100,6 +3104,10 @@ function showPage(name){
   document.getElementById('nav-'+name).classList.add('active');
   if(name==='schedule'){
     renderSchedule(schMonth);
+  }
+  if(name==='drone'){
+    var f = document.getElementById('droneFrame');
+    if(!f.src || f.src === window.location.href) f.src = 'drone_forms.html';
   }
 }
 
