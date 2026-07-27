@@ -229,6 +229,28 @@ document.getElementById("btn-validate").addEventListener("click", ()=>{
   else setMsg(`미입력 필수항목 ${missingCount}개 — 빨간 칸을 확인해 주세요`, true);
 });
 
+
+/* ── 페이지 로드 시 하드코딩 데이터 초기화 ── */
+(function clearHardcodedData(){
+  // 모든 select[data-row] 초기화
+  document.querySelectorAll('select[data-row]').forEach(sel => {
+    sel.value = '';
+    sel.dataset.currentValue = '';
+  });
+  // select[data-row]가 포함된 TR의 모든 TD 텍스트 셀 초기화
+  const clearedRows = new Set();
+  document.querySelectorAll('select[data-row]').forEach(sel => {
+    const tr = sel.closest('tr');
+    if(tr && !clearedRows.has(tr)){
+      clearedRows.add(tr);
+      tr.querySelectorAll('td').forEach(td => {
+        if(!td.querySelector('select') && !td.querySelector('input')){
+          td.textContent = '';
+        }
+      });
+    }
+  });
+})();
 window.addEventListener("message", (e)=>{
   if(e.data && e.data.type === "drone_session_updated"){
     document.getElementById("btn-autofill").click();
