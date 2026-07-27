@@ -389,11 +389,7 @@ setTimeout(function(){
       }
     });
   });
-  // 2) 세션이 있으면 자동입력 (첫 번째 빈 행에만)
-  try{
-    var session = localStorage.getItem('drone_session');
-    if(session) document.getElementById('btn-autofill').click();
-  }catch(e){}
+  // 자동입력은 부모 프레임의 postMessage로만 트리거 (중복 실행 방지)
 }, 0);
 </script>
 </body>
