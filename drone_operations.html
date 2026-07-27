@@ -355,13 +355,25 @@ document.getElementById("btn-validate").addEventListener("click", ()=>{
 
 function fillAllFromRecords(records){
   if(!records || !records.length){ setMsg("반영할 비행 기록이 없습니다.", true); return; }
+
+  // 전체 초기화 후 재채움 (Tab2와 동일 방식)
   const catSelects = Array.from(getDataRows());
+  catSelects.forEach(function(catSel){
+    var tr = catSel.closest('tr');
+    if(!tr) return;
+    tr.querySelectorAll('td').forEach(function(td){
+      td.querySelectorAll('select').forEach(function(s){ s.value=''; s.dataset.currentValue=''; });
+      if(!td.querySelector('select') && !td.querySelector('input')) td.textContent='';
+      td.classList.remove('auto-filled','req-empty');
+    });
+    if(tr.querySelectorAll('td')[1]) tr.querySelectorAll('td')[1].textContent='목포';
+  });
+
   let rowIdx = 0;
   for(const r of records){
     if(rowIdx >= catSelects.length) break;
     const catSel = catSelects[rowIdx];
     const tds = getRowTds(catSel);
-    if(tds[2].textContent.trim()){ rowIdx++; continue; } // 이미 채워진 행 건너뜀
 
     const dateStr = r.log_datetime ? r.log_datetime.slice(0,10) : "";
     tds[2].textContent = dateStr;
