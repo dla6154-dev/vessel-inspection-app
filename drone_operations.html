@@ -129,6 +129,12 @@ body {
   }
   td.req-empty { background: #fff1f1 !important; outline: 2px solid #dc2626 !important; }
   td.auto-filled { background: #f0fdf4 !important; }
+  /* 토글 클릭 셀 */
+  td.toggle-cell { cursor: pointer !important; user-select: none !important; }
+  td.toggle-cell:hover { background: #dbeafe !important; }
+  /* 직접 입력 셀 */
+  td[contenteditable="true"] { cursor: text !important; }
+  td[contenteditable="true"]:focus { background: #fffbeb !important; outline: 2px solid #f59e0b !important; outline-offset: -2px; }
 }</style>
 </head>
 <body>
@@ -241,8 +247,15 @@ document.getElementById("btn-autofill").addEventListener("click", ()=>{
     const isNew = !dateCell.textContent.trim();
     if(!isNew) continue;
 
+    // 이미 채워진 행 수 (사진파일명 번호 계산)
+    const filledBefore = Array.from(getDataRows()).filter(s => getRowTds(s)[2].textContent.trim()).length;
+    const rowNum = filledBefore + 1;
+
     dateCell.textContent = session.date || "";
     dateCell.classList.add("auto-filled");
+
+    // 지사 고정
+    if(tds[1]){ tds[1].textContent = '목포'; }
 
     if(session.category){
       catSel.value = session.category;
@@ -260,6 +273,14 @@ document.getElementById("btn-autofill").addEventListener("click", ()=>{
         tds[idx].classList.add("auto-filled");
       }
     });
+
+    // 사진파일명 자동생성: MMDD.목포.N.장소
+    if(tds[13]){
+      const mmdd = (session.date || "").replace(/^\d{4}-/, "").replace("-", "");
+      const loc = session.location_short || "";
+      tds[13].textContent = [mmdd, "목포", rowNum, loc].filter(Boolean).join(".");
+      tds[13].classList.add("auto-filled");
+    }
 
     if(session.aircraft){
       const aircraftSel = document.querySelector(`select.aircraft-select[data-row="${row}"]`);
@@ -386,6 +407,40 @@ setTimeout(function(){
       });
       if(!td.querySelector('select') && !td.querySelector('input')){
         td.textContent = '';
+      }
+    });
+  });
+  // 2) 행별 UI 설정: 지사=목포 고정 / 토글 셀 / 직접입력 셀
+  document.querySelectorAll('select.category-select').forEach(function(catSel){
+    var tds = catSel.closest('tr').querySelectorAll('td');
+
+    // 지사 고정
+    if(tds[1]) tds[1].textContent = '목포';
+
+    // 드론 종류 토글 (항공 ↔ 수중)
+    if(tds[3] && !tds[3].classList.contains('toggle-cell')){
+      tds[3].classList.add('toggle-cell');
+      tds[3].title = '클릭: 항공 ↔ 수중';
+      tds[3].addEventListener('click', function(){
+        this.textContent = (this.textContent.trim() === '항공') ? '수중' : '항공';
+      });
+    }
+
+    // 모니터링 연계여부 토글 (O ↔ X)
+    if(tds[4] && !tds[4].classList.contains('toggle-cell')){
+      tds[4].classList.add('toggle-cell');
+      tds[4].title = '클릭: O ↔ X';
+      tds[4].addEventListener('click', function(){
+        this.textContent = (this.textContent.trim() === 'O') ? 'X' : 'O';
+      });
+    }
+
+    // 항로(8), 선명(9), 횟수(10) 직접 입력
+    [[8,'항로'],[9,'선명'],[10,'횟수']].forEach(function(pair){
+      var idx = pair[0], ph = pair[1];
+      if(tds[idx] && !tds[idx].getAttribute('contenteditable')){
+        tds[idx].contentEditable = 'true';
+        tds[idx].setAttribute('data-placeholder', ph);
       }
     });
   });
