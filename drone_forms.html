@@ -865,7 +865,14 @@ function getTab3Src(){
   return `drone_operations.html?year=${y}&month=${m}&t=${Date.now()}`;
 }
 function loadTab3(){
-  document.getElementById("tab3Frame").src = getTab3Src();
+  const f = document.getElementById("tab3Frame");
+  f.src = getTab3Src();
+  f.onload = () => {
+    try{
+      const session = localStorage.getItem("drone_session");
+      if(session) f.contentWindow.postMessage({type:"drone_session_updated"},"*");
+    }catch(e){}
+  };
 }
 
 document.getElementById("ops-year").addEventListener("change", loadTab3);
