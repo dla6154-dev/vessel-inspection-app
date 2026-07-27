@@ -353,8 +353,65 @@ document.getElementById("btn-validate").addEventListener("click", ()=>{
 })();
 
 
+function fillAllFromRecords(records){
+  if(!records || !records.length){ setMsg("반영할 비행 기록이 없습니다.", true); return; }
+  const catSelects = Array.from(getDataRows());
+  let rowIdx = 0;
+  for(const r of records){
+    if(rowIdx >= catSelects.length) break;
+    const catSel = catSelects[rowIdx];
+    const tds = getRowTds(catSel);
+    if(tds[2].textContent.trim()){ rowIdx++; continue; } // 이미 채워진 행 건너뜀
+
+    const dateStr = r.log_datetime ? r.log_datetime.slice(0,10) : "";
+    tds[2].textContent = dateStr;
+    tds[2].classList.add("auto-filled");
+
+    if(tds[1]) tds[1].textContent = "목포";
+
+    if(r.flight_location && tds[7]){
+      tds[7].textContent = r.flight_location;
+      tds[7].classList.add("auto-filled");
+    }
+    if(r.pilot_name && tds[11]){
+      tds[11].textContent = r.pilot_name;
+      tds[11].classList.add("auto-filled");
+    }
+    if(r.flight_duration && tds[15]){
+      tds[15].textContent = String(parseInt(r.flight_duration)||r.flight_duration);
+      tds[15].classList.add("auto-filled");
+    }
+
+    // 기종 select 매칭
+    if(r.registration_no && tds[14]){
+      const sel = tds[14].querySelector("select");
+      if(sel){
+        const reg = r.registration_no.toLowerCase().replace(/[\s\-_]/g,"");
+        for(const opt of sel.options){
+          if(opt.value && reg.includes(opt.value.toLowerCase().replace(/[\s\-_]/g,""))){
+            sel.value = opt.value; break;
+          }
+        }
+      }
+    }
+
+    // 사진파일명: MMDD.목포.N.장소
+    if(tds[13] && dateStr){
+      const mmdd = dateStr.slice(5).replace("-","");
+      tds[13].textContent = `${mmdd}.목포.${rowIdx+1}.${r.flight_location||""}`;
+      tds[13].classList.add("auto-filled");
+    }
+
+    REQ_COLS.forEach(idx=>{ if(tds[idx]) tds[idx].classList.toggle("req-empty",!tds[idx].textContent.trim()); });
+    rowIdx++;
+  }
+  setMsg(`${rowIdx}개 비행 기록 반영 완료. 빨간 칸을 직접 입력해 주세요.`, false);
+}
+
 window.addEventListener("message", (e)=>{
-  if(e.data && e.data.type === "drone_session_updated"){
+  if(e.data && e.data.type === "drone_all_flights"){
+    fillAllFromRecords(e.data.records);
+  } else if(e.data && e.data.type === "drone_session_updated"){
     document.getElementById("btn-autofill").click();
   }
 });

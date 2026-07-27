@@ -864,13 +864,26 @@ function getTab3Src(){
   const m = document.getElementById("ops-month").value;
   return `drone_operations.html?year=${y}&month=${m}&t=${Date.now()}`;
 }
+async function fetchFlightLogsForMonth(){
+  const y = document.getElementById("ops-year").value;
+  const m = document.getElementById("ops-month").value;
+  const mm = String(m).padStart(2,"0");
+  const mInt = parseInt(m);
+  const nextYear = mInt===12 ? String(parseInt(y)+1) : y;
+  const nextMm   = mInt===12 ? "01" : String(mInt+1).padStart(2,"0");
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/${T_FLIGHTLOG}?log_datetime=gte.${y}-${mm}-01&log_datetime=lt.${nextYear}-${nextMm}-01&select=*&order=log_datetime.asc`,
+    {headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}}
+  );
+  return res.ok ? await res.json() : [];
+}
 function loadTab3(){
   const f = document.getElementById("tab3Frame");
   f.src = getTab3Src();
-  f.onload = () => {
+  f.onload = async () => {
     try{
-      const session = localStorage.getItem("drone_session");
-      if(session) f.contentWindow.postMessage({type:"drone_session_updated"},"*");
+      const records = await fetchFlightLogsForMonth();
+      f.contentWindow.postMessage({type:"drone_all_flights", records},"*");
     }catch(e){}
   };
 }
@@ -1410,7 +1423,10 @@ async function saveMaster(){
     await loadFlightLog();
     try{
       const f = document.getElementById("tab3Frame");
-      if(f && f.contentWindow) f.contentWindow.postMessage({type:"drone_session_updated"},"*");
+      if(f && f.src && f.src !== window.location.href && f.contentWindow){
+        const records = await fetchFlightLogsForMonth();
+        f.contentWindow.postMessage({type:"drone_all_flights", records},"*");
+      }
     }catch(e){}
     setStatus(statusEl, "저장 완료 — 점검 체크리스트와 비행 기록부에 모두 반영되었습니다", "ok");
     setTimeout(()=>{
