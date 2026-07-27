@@ -725,9 +725,6 @@
       <div class="field wide"><label>특이 비행 사항</label><input type="text" id="f_notes" data-sync="special_notes"></div>
     </div>
 
-    <h4 style="font-size:13px;margin:16px 0 6px;color:#444;">① 점검 체크리스트</h4>
-    <div id="masterChecklistSlot"></div>
-
     <div class="modal-actions">
       <span id="statusMsgMaster"></span>
       <button class="secondary" id="btnCancelMaster">취소</button>
@@ -1117,6 +1114,7 @@ async function saveChecklist(){
 
 async function loadHistory(){
   const wrap = document.getElementById("historyWrap1");
+  if(!wrap) return;
   try{
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${T_CHECKLIST}?select=id,inspection_date,registration_no,pilot_name,flight_location,inspector_name,items,updated_at&order=updated_at.desc&limit=20`, {
       headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
@@ -1333,15 +1331,12 @@ async function postFlightLog(payload){
 
 function openMasterModal(){
   document.getElementById("masterCommonSlot").appendChild(document.getElementById("footerTable1"));
-  document.getElementById("masterChecklistSlot").appendChild(document.getElementById("checklistTableSlot"));
   calcFlightDuration();
   document.getElementById("masterModal").classList.add("open");
 }
 function closeMasterModal(){
   document.getElementById("footerTable1Anchor").parentNode.insertBefore(
     document.getElementById("footerTable1"), document.getElementById("footerTable1Anchor"));
-  document.getElementById("checklistSlotAnchor").parentNode.insertBefore(
-    document.getElementById("checklistTableSlot"), document.getElementById("checklistSlotAnchor"));
   document.getElementById("masterModal").classList.remove("open");
 }
 document.getElementById("btnOpenMaster").addEventListener("click", openMasterModal);
