@@ -97,6 +97,38 @@ body {
   }
   td.req-empty { background: #fff1f1 !important; outline: 2px solid #dc2626 !important; }
   td.auto-filled { background: #f0fdf4 !important; }
+}
+/* ── 화면 전용 스타일 (Tab2 비행기록부와 동일) ── */
+@media screen {
+  body { font-family: "Malgun Gothic", sans-serif !important; background: #f0f4f9 !important; padding: 16px !important; }
+  .sheet-scroll { overflow-x: auto; }
+  .sheet-canvas { background: #fff; border: 1px solid #ccc; box-shadow: 0 2px 10px rgba(0,0,0,.08); padding: 22px 26px; max-width: 1400px; margin: 0 auto; border-radius: 4px; }
+  table.excel-sheet { border-collapse: collapse !important; width: 100% !important; min-width: unset !important; font-size: 12px !important; font-family: "Malgun Gothic", sans-serif !important; }
+  table.excel-sheet col { width: auto !important; }
+  table.excel-sheet td {
+    border: 1px solid #ccc !important;
+    padding: 5px 4px !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    background: #fff !important;
+    color: #111 !important;
+    font-size: 11px !important;
+    font-family: "Malgun Gothic", sans-serif !important;
+    font-weight: normal !important;
+    white-space: normal !important;
+  }
+  table.excel-sheet select {
+    font-family: "Malgun Gothic", sans-serif !important;
+    font-size: 11px !important;
+    padding: 1px 2px !important;
+    border: 1px solid #ccc !important;
+    border-radius: 3px !important;
+    background: #fff !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  td.req-empty { background: #fff1f1 !important; outline: 2px solid #dc2626 !important; }
+  td.auto-filled { background: #f0fdf4 !important; }
 }</style>
 </head>
 <body>
@@ -295,6 +327,24 @@ document.getElementById("btn-validate").addEventListener("click", ()=>{
         }
       });
     }
+  });
+})();
+
+/* ── 페이지 로드 시 하드코딩 데이터 초기화 (category-select 포함 행만) ── */
+(function clearHardcodedData(){
+  document.querySelectorAll('select.category-select').forEach(catSel => {
+    const tr = catSel.closest('tr');
+    if(!tr) return;
+    tr.querySelectorAll('td').forEach(td => {
+      td.querySelectorAll('select').forEach(s => {
+        s.value = '';
+        if(s.dataset) s.dataset.currentValue = '';
+        s.querySelectorAll('option').forEach(opt => opt.removeAttribute('selected'));
+      });
+      if(!td.querySelector('select') && !td.querySelector('input')){
+        td.textContent = '';
+      }
+    });
   });
 })();
 window.addEventListener("message", (e)=>{
