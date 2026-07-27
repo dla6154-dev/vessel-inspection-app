@@ -322,6 +322,15 @@
   table.flightlog thead th{background:var(--gray);font-weight:bold;white-space:nowrap;}
   #tab2 .sheet{max-width:1300px;}
   table.flightlog td.left{text-align:left;}
+  /* 운용실적 토글·편집 셀 */
+  td.ops-toggle{cursor:pointer;user-select:none;font-weight:bold;}
+  td.ops-toggle:hover{background:var(--blue-light,#dbeafe);}
+  td[contenteditable="true"].ops-edit{cursor:text;min-width:40px;}
+  td[contenteditable="true"].ops-edit:focus{outline:2px solid #f59e0b;outline-offset:-2px;background:#fffbeb;}
+  td[contenteditable="true"].ops-edit:empty::before{content:attr(data-placeholder);color:#bbb;font-size:10px;pointer-events:none;}
+  .ops-photo{font-size:10px;word-break:break-all;text-align:left;}
+  #opsTable select{font-size:11px;width:100%;border:none;background:transparent;outline:none;}
+  #opsTable select:focus{outline:1px solid #3b82f6;}
   .scroll-x{overflow-x:auto;}
   .empty{color:#999;text-align:center;padding:14px;font-size:12px;}
 
@@ -657,8 +666,30 @@
 </div>
 
 <!-- ===================== TAB 3: 운용 실적 ===================== -->
-<div class="panel" id="tab3" style="padding:0;height:calc(100vh - 100px);display:none;flex-direction:column;">
-  <iframe id="tab3Frame" style="width:100%;flex:1;border:none;display:block;"></iframe>
+<div class="panel" id="tab3">
+  <div class="sheet">
+    <h1 class="title">드론 운용 실적 보고서</h1>
+    <div class="scroll-x">
+      <table class="flightlog" id="opsTable">
+        <thead>
+          <tr>
+            <th>No</th><th>지사</th><th>활용일자</th>
+            <th>드론<br>종류</th><th>모니터링<br>연계여부</th>
+            <th>분류</th><th>추진업무</th><th>지역</th>
+            <th>항로</th><th>선명</th><th>횟수</th>
+            <th>점검자</th><th>자격급수</th><th>사진파일명</th>
+            <th>기종</th><th>운용<br>시간(분)</th><th>비고</th>
+          </tr>
+        </thead>
+        <tbody id="opsBody">
+          <tr><td colspan="17" class="empty">불러오는 중...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="action-bar">
+      <button class="secondary" id="btnPrintOps">인쇄 / PDF</button>
+    </div>
+  </div>
 </div>
 
 <!-- 조종자 정보 모달 -->
@@ -864,32 +895,111 @@ function getTab3Src(){
   const m = document.getElementById("ops-month").value;
   return `drone_operations.html?year=${y}&month=${m}&t=${Date.now()}`;
 }
-async function fetchFlightLogsForMonth(){
-  const y = document.getElementById("ops-year").value;
-  const m = document.getElementById("ops-month").value;
-  const mm = String(m).padStart(2,"0");
-  const mInt = parseInt(m);
-  const nextYear = mInt===12 ? String(parseInt(y)+1) : y;
-  const nextMm   = mInt===12 ? "01" : String(mInt+1).padStart(2,"0");
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/${T_FLIGHTLOG}?log_datetime=gte.${y}-${mm}-01&log_datetime=lt.${nextYear}-${nextMm}-01&select=*&order=log_datetime.asc`,
-    {headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}}
-  );
-  return res.ok ? await res.json() : [];
+const OPS_TASK_MAP = {
+  '드론촬영및교육': ['1. 3D 맵핑 활용','2. 드론 친숙화 및 교육'],
+  '각종점검': ['3. 출항 전 점검, 특별, 월례 점검','4. 미배치지역, 기항지, 항로 점검','5. 시설물(터미널, 센터, 파견지, 통신설비 등) 점검','6. 해양사고 등 특이사항 점검 및 모니터링','7. 수중 점검'],
+  '국민체감형실적': ['8. 영상(여객선, 매체 홍보물 등) 제공','9. 대국민 서비스(기념 촬영, 정보제공)'],
+  '기타': []
+};
+const OPS_AIRCRAFT = ['Splash Drone 3','Knx-S01','KnX2','Air2S','M30','M3E','M2 PRO (수중)','M4E','Air3S'];
+
+function opsCatFromPurpose(purpose){
+  if(!purpose) return '';
+  const n = parseInt(purpose);
+  if(n>=1&&n<=2) return '드론촬영및교육';
+  if(n>=3&&n<=7) return '각종점검';
+  if(n>=8&&n<=9) return '국민체감형실적';
+  return '';
 }
-function loadTab3(){
-  const f = document.getElementById("tab3Frame");
-  f.src = getTab3Src();
-  f.onload = async () => {
-    try{
-      const records = await fetchFlightLogsForMonth();
-      f.contentWindow.postMessage({type:"drone_all_flights", records},"*");
-    }catch(e){}
-  };
+function opsAircraftFromReg(reg){
+  if(!reg) return '';
+  const r = reg.toLowerCase().replace(/[\s\-_()/]/g,'');
+  return OPS_AIRCRAFT.find(a=>r.includes(a.toLowerCase().replace(/[\s\-_()/]/g,''))) || '';
+}
+function opsCatSelect(cat, task){
+  const cats = [['','선택'],['드론촬영및교육','드론촬영 및 교육'],['각종점검','각종 점검'],['국민체감형실적','국민 체감형 실적'],['기타','기타']];
+  return `<select class="ops-cat">${cats.map(([v,l])=>`<option value="${v}"${cat===v?' selected':''}>${l}</option>`).join('')}</select>`;
+}
+function opsTaskSelect(cat, task){
+  const tasks = OPS_TASK_MAP[cat]||[];
+  return `<select class="ops-task"><option value="">선택</option>${tasks.map(t=>`<option${t===task?' selected':''}>${t}</option>`).join('')}</select>`;
+}
+function opsAircraftSelect(aircraft){
+  return `<select class="ops-aircraft"><option value="">선택</option>${OPS_AIRCRAFT.map(a=>`<option${a===aircraft?' selected':''}>${a}</option>`).join('')}</select>`;
 }
 
-document.getElementById("ops-year").addEventListener("change", loadTab3);
-document.getElementById("ops-month").addEventListener("change", loadTab3);
+async function loadOpsTable(){
+  const tbody = document.getElementById("opsBody");
+  if(!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="17" class="empty">불러오는 중...</td></tr>`;
+  try{
+    const y = document.getElementById("ops-year").value;
+    const m = document.getElementById("ops-month").value;
+    const mm = String(m).padStart(2,"0");
+    const mInt = parseInt(m);
+    const nextYear = mInt===12 ? String(parseInt(y)+1) : y;
+    const nextMm = mInt===12 ? "01" : String(mInt+1).padStart(2,"0");
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${T_FLIGHTLOG}?log_datetime=gte.${y}-${mm}-01&log_datetime=lt.${nextYear}-${nextMm}-01&select=*&order=log_datetime.asc`,
+      {headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}}
+    );
+    if(!res.ok) throw new Error(await res.text());
+    const records = await res.json();
+    if(!records.length){
+      tbody.innerHTML = `<tr><td colspan="17" class="empty">이 달의 비행 기록이 없습니다.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = records.map((r,i)=>{
+      const dateStr = r.log_datetime ? r.log_datetime.slice(0,10) : "";
+      const mmdd = dateStr.slice(5).replace("-","");
+      const loc = r.flight_location || "";
+      const photoName = mmdd ? `${mmdd}.목포.${i+1}.${loc}` : "";
+      const cat = opsCatFromPurpose(r.purpose);
+      const aircraft = opsAircraftFromReg(r.registration_no);
+      return `<tr>
+        <td>${i+1}</td>
+        <td>목포</td>
+        <td>${dateStr}</td>
+        <td class="ops-toggle ops-drone" style="cursor:pointer;" title="클릭: 항공↔수중"></td>
+        <td class="ops-toggle ops-monitor" style="cursor:pointer;" title="클릭: O↔X"></td>
+        <td>${opsCatSelect(cat, r.purpose)}</td>
+        <td>${opsTaskSelect(cat, r.purpose)}</td>
+        <td class="left">${loc}</td>
+        <td contenteditable="true" class="ops-edit" data-placeholder="항로"></td>
+        <td contenteditable="true" class="ops-edit" data-placeholder="선명"></td>
+        <td contenteditable="true" class="ops-edit" data-placeholder="횟수"></td>
+        <td>${r.pilot_name||""}</td>
+        <td contenteditable="true" class="ops-edit"></td>
+        <td class="left ops-photo">${photoName}</td>
+        <td>${opsAircraftSelect(aircraft)}</td>
+        <td>${r.flight_duration||""}</td>
+        <td contenteditable="true" class="ops-edit left"></td>
+      </tr>`;
+    }).join('');
+
+    // 분류 변경 시 추진업무 옵션 동적 업데이트
+    tbody.querySelectorAll('.ops-cat').forEach(sel=>{
+      sel.addEventListener('change', function(){
+        const row = this.closest('tr');
+        const taskSel = row.querySelector('.ops-task');
+        const tasks = OPS_TASK_MAP[this.value]||[];
+        taskSel.innerHTML = `<option value="">선택</option>${tasks.map(t=>`<option>${t}</option>`).join('')}`;
+      });
+    });
+    // 드론 종류 / 모니터링 토글
+    tbody.querySelectorAll('.ops-drone').forEach(td=>{
+      td.addEventListener('click', function(){ this.textContent = this.textContent.trim()==='항공'?'수중':'항공'; });
+    });
+    tbody.querySelectorAll('.ops-monitor').forEach(td=>{
+      td.addEventListener('click', function(){ this.textContent = this.textContent.trim()==='O'?'X':'O'; });
+    });
+  }catch(err){
+    tbody.innerHTML = `<tr><td colspan="17" class="empty">불러오기 실패: ${err.message}</td></tr>`;
+  }
+}
+
+document.getElementById("ops-year").addEventListener("change", loadOpsTable);
+document.getElementById("ops-month").addEventListener("change", loadOpsTable);
 
 document.querySelectorAll(".tabs button").forEach(btn=>{
   btn.addEventListener("click", ()=>{
@@ -902,9 +1012,7 @@ document.querySelectorAll(".tabs button").forEach(btn=>{
     const activePanel = document.getElementById(btn.dataset.tab);
     activePanel.classList.add("active");
     if(btn.dataset.tab === "tab3"){
-      activePanel.style.display = "flex";
-      const f = document.getElementById("tab3Frame");
-      if(!f.src || f.src === window.location.href) loadTab3();
+      loadOpsTable();
     }
   });
 });
@@ -1421,13 +1529,10 @@ async function saveMaster(){
     saveDroneSession();
     await loadHistory();
     await loadFlightLog();
-    try{
-      const f = document.getElementById("tab3Frame");
-      if(f && f.src && f.src !== window.location.href && f.contentWindow){
-        const records = await fetchFlightLogsForMonth();
-        f.contentWindow.postMessage({type:"drone_all_flights", records},"*");
-      }
-    }catch(e){}
+    // Tab3이 현재 활성화 상태면 즉시 갱신
+    if(document.getElementById("tab3").classList.contains("active")){
+      loadOpsTable();
+    }
     setStatus(statusEl, "저장 완료 — 점검 체크리스트와 비행 기록부에 모두 반영되었습니다", "ok");
     setTimeout(()=>{
       closeMasterModal();
@@ -1506,6 +1611,11 @@ async function loadFlightLog(){
 }
 document.getElementById("lg_reg").addEventListener("change", loadFlightLog);
 document.getElementById("btnPrint2").addEventListener("click", ()=>window.print());
+document.getElementById("btnPrintOps").addEventListener("click", ()=>{
+  const y = document.getElementById("ops-year").value;
+  const m = document.getElementById("ops-month").value;
+  window.open(`drone_operations.html?year=${y}&month=${m}`, "_blank");
+});
 
 /* 초기화 */
 populateAircraftSelects();
