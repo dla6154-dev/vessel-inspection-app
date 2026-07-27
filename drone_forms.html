@@ -1065,7 +1065,7 @@ function buildChecklistPayload(){
     pilot_name: getPilotName(),
     assistant_name: document.getElementById("f_assist").value,
     flight_location: document.getElementById("f_location").value,
-    flight_purpose: document.getElementById("f_purpose").value,
+    flight_purpose: document.getElementById("f_task").value,
     wind_temp: `${document.getElementById("f_wind").value} / ${document.getElementById("f_temp").value}`,
     flight_start: document.getElementById("f_start").value,
     inspector_name: getPilotName(),
@@ -1150,7 +1150,7 @@ async function loadChecklistRecord(id){
     document.getElementById("f_reg").value = r.registration_no || AIRCRAFT_LIST[0];
     document.getElementById("f_assist").value = r.assistant_name || "";
     document.getElementById("f_location").value = r.flight_location || "";
-    document.getElementById("f_purpose").value = r.flight_purpose || "";
+    document.getElementById("f_task").value = r.flight_purpose || "";
     const wt = (r.wind_temp||" / ").split(" / ");
     document.getElementById("f_wind").value = wt[0] || "";
     document.getElementById("f_temp").value = wt[1] || "";
@@ -1166,7 +1166,7 @@ async function loadChecklistRecord(id){
 }
 
 function resetChecklistForm(){
-  ["f_assist","f_location","f_purpose","f_wind","f_temp","f_start","f_end","f_duration"].forEach(id=>{
+  ["f_assist","f_location","f_wind","f_temp","f_start","f_end","f_duration"].forEach(id=>{
     document.getElementById(id).value = "";
   });
   document.getElementById("f_task").value = "";
