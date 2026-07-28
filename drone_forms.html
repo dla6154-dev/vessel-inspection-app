@@ -778,6 +778,21 @@
     <div id="masterCommonSlot"></div>
 
     <div class="entry-grid" style="margin-bottom:10px;">
+      <div class="field"><label>드론 종류</label>
+        <select id="f_drone_type">
+          <option value="항공">항공</option>
+          <option value="수중">수중</option>
+        </select>
+      </div>
+      <div class="field"><label>모니터링 연계여부</label>
+        <select id="f_monitoring">
+          <option value="O">O</option>
+          <option value="X">X</option>
+        </select>
+      </div>
+      <div class="field"><label>항로</label><input type="text" id="f_route" placeholder="항로명"></div>
+      <div class="field"><label>선명</label><input type="text" id="f_vessel" placeholder="선박명"></div>
+      <div class="field"><label>횟수</label><input type="text" id="f_count" placeholder="예: 1"></div>
       <div class="field"><label>비행범위</label><input type="text" id="f_range" data-sync="flight_range"></div>
       <div class="field"><label>비행고도</label><input type="text" id="f_altitude" data-sync="flight_altitude" placeholder="예: 80m"></div>
       <div class="field"><label>촬영형태</label>
@@ -996,16 +1011,16 @@ async function loadOpsTable(){
         <td>${i+1}</td>
         <td>목포</td>
         <td>${dateStr}</td>
-        <td class="ops-toggle ops-drone" style="cursor:pointer;" title="클릭: 항공↔수중"></td>
-        <td class="ops-toggle ops-monitor" style="cursor:pointer;" title="클릭: O↔X"></td>
+        <td class="ops-toggle ops-drone" style="cursor:pointer;" title="클릭: 항공↔수중">${r.drone_type||"항공"}</td>
+        <td class="ops-toggle ops-monitor" style="cursor:pointer;" title="클릭: O↔X">${r.monitoring||"O"}</td>
         <td>${opsCatSelect(cat, r.purpose)}</td>
         <td>${opsTaskSelect(cat, r.purpose)}</td>
         <td class="left">${loc}</td>
-        <td contenteditable="true" class="ops-edit" data-placeholder="항로"></td>
-        <td contenteditable="true" class="ops-edit" data-placeholder="선명"></td>
-        <td contenteditable="true" class="ops-edit" data-placeholder="횟수"></td>
+        <td contenteditable="true" class="ops-edit" data-placeholder="항로">${r.route||""}</td>
+        <td contenteditable="true" class="ops-edit" data-placeholder="선명">${r.vessel_name||""}</td>
+        <td contenteditable="true" class="ops-edit" data-placeholder="횟수">${r.flight_count||""}</td>
         <td>${r.pilot_name||""}</td>
-        <td contenteditable="true" class="ops-edit"></td>
+        <td contenteditable="true" class="ops-edit">${r.pilot_license||getPilotLicense()}</td>
         <td class="left ops-photo">${photoName}</td>
         <td>${opsAircraftSelect(aircraft)}</td>
         <td>${r.flight_duration||""}</td>
@@ -1518,7 +1533,13 @@ function buildFlightLogPayload(){
     visibility: document.getElementById("f_visibility").value,
     weather_etc: document.getElementById("f_weather_etc").value,
     flight_approval: "O",
-    shooting_approval: "O"
+    shooting_approval: "O",
+    drone_type:   document.getElementById("f_drone_type").value,
+    monitoring:   document.getElementById("f_monitoring").value,
+    route:        document.getElementById("f_route").value,
+    vessel_name:  document.getElementById("f_vessel").value,
+    flight_count: document.getElementById("f_count").value,
+    pilot_license: getPilotLicense(),
   };
 }
 async function postFlightLog(payload){
