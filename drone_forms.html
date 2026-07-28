@@ -3,6 +3,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>무인비행장치 전자 서식</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --line:#000;
@@ -718,7 +719,7 @@
       </table>
     </div>
     <div class="action-bar">
-      <button class="secondary" id="btnPrintOps">인쇄 / PDF</button>
+      <button class="secondary" id="btnExcelOps" style="background:#16a34a;color:#fff;border-color:#16a34a;">📥 엑셀 다운로드</button>
     </div>
   </div>
 </div>
@@ -1681,10 +1682,29 @@ async function loadFlightLog(){
 }
 document.getElementById("lg_reg").addEventListener("change", loadFlightLog);
 document.getElementById("btnPrint2").addEventListener("click", ()=>window.print());
-document.getElementById("btnPrintOps").addEventListener("click", ()=>{
+document.getElementById("btnExcelOps").addEventListener("click", ()=>{
   const y = document.getElementById("ops-year").value;
   const m = document.getElementById("ops-month").value;
-  window.open(`drone_operations.html?year=${y}&month=${m}`, "_blank");
+  const headers = ["No","지사","활용일자","드론종류","모니터링연계여부","분류","추진업무","지역","항로","선명","횟수","점검자","자격급수","사진파일명","기종","운용시간(분)","비고"];
+  const rows = [];
+  document.querySelectorAll("#opsBody tr").forEach(tr=>{
+    const tds = tr.querySelectorAll("td");
+    if(tds.length < 17) return;
+    const cell = (i) => {
+      const td = tds[i];
+      const sel = td.querySelector("select");
+      if(sel) return sel.value;
+      return td.textContent.trim();
+    };
+    rows.push(headers.map((_,i) => cell(i)));
+  });
+  if(!rows.length){ alert("내보낼 데이터가 없습니다."); return; }
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  // 컬럼 너비 설정
+  ws["!cols"] = [4,6,12,8,10,10,30,12,8,8,6,8,8,18,10,10,8].map(w=>({wch:w}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `${y}년${m}월 운용실적`);
+  XLSX.writeFile(wb, `드론운용실적_${y}${String(m).padStart(2,"0")}.xlsx`);
 });
 
 /* 초기화 */
