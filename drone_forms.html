@@ -666,6 +666,7 @@
             <th rowspan="3">촬영승인</th>
             <th rowspan="3">조종자</th>
             <th rowspan="3">특이 비행 사항</th>
+            <th rowspan="3" class="no-print"></th>
           </tr>
           <tr>
             <th rowspan="2">비행목적</th>
@@ -1735,7 +1736,7 @@ async function loadFlightLog(){
       <td class="approval-cell" data-id="${r.id}" data-field="shooting_approval" style="cursor:pointer;font-weight:bold;">${r.shooting_approval||"O"}</td>
       <td>${r.pilot_name||""}</td>
       <td class="left">${r.special_notes||""}</td>
-      <td style="white-space:nowrap;">
+      <td class="no-print" style="white-space:nowrap;">
         <button class="edit-log-btn" data-id="${r.id}" style="font-size:11px;padding:3px 7px;background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:4px;cursor:pointer;margin-right:3px;">수정</button>
         <button class="del-log-btn" data-id="${r.id}" style="font-size:11px;padding:3px 7px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;">삭제</button>
       </td>
