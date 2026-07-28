@@ -130,12 +130,28 @@ async function loadRecords() {
     // photo_path 포함해서 불러오기 — 업로드 여부를 DB에서 직접 판단
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/${T_FLIGHTLOG}?log_datetime=gte.${y}-${mm}-01&log_datetime=lt.${nextY}-${nextMm}-01` +
-      `&select=id,log_datetime,flight_location,pilot_name,photo_path&order=log_datetime.asc`,
+      `&select=id,log_datetime,flight_location,pilot_name,photo_path,photo_display_name&order=log_datetime.asc`,
       { headers: hdrs() }
     );
     if (!res.ok) throw new Error(await res.text());
     records = await res.json();
     filenames = getPhotoFilenames(records);
+
+    // photo_path는 있는데 photo_display_name이 없는 경우 → 파일명 복원 후 DB 업데이트
+    for (let i = 0; i < records.length; i++) {
+      const r = records[i];
+      if (r.photo_path && !r.photo_display_name) {
+        const ext = r.photo_path.includes(".") ? r.photo_path.slice(r.photo_path.lastIndexOf(".")) : ".jpg";
+        const displayName = filenames[i] + ext;
+        r.photo_display_name = displayName;
+        // 백그라운드로 DB 업데이트 (await 없이)
+        fetch(`${SUPABASE_URL}/rest/v1/${T_FLIGHTLOG}?id=eq.${r.id}`, {
+          method: "PATCH",
+          headers: { ...hdrs(), "Content-Type": "application/json", Prefer: "return=minimal" },
+          body: JSON.stringify({ photo_display_name: displayName })
+        });
+      }
+    }
 
     const uploadedCount = records.filter(r => r.photo_path).length;
     msg.textContent = `${records.length}건 로드됨 (업로드 ${uploadedCount}건)`;
