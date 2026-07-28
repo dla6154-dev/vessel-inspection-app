@@ -20,15 +20,16 @@
   .btn-zip:disabled{background:#9ca3af;cursor:not-allowed;}
 
   .status{font-size:12px;color:#555;margin-left:4px;}
-
   .list{display:flex;flex-direction:column;gap:10px;}
 
   .card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .card.has-photo{border-color:#16a34a;}
   .card-info{flex:1;min-width:180px;}
   .card-no{font-size:11px;color:#888;margin-bottom:2px;}
   .card-date{font-size:13px;font-weight:bold;color:#1a5fb4;}
   .card-loc{font-size:12px;color:#444;margin-top:2px;}
   .card-filename{font-size:11px;color:#16a34a;margin-top:4px;font-family:monospace;word-break:break-all;}
+  .cloud-badge{font-size:10px;background:#dcfce7;color:#15803d;border-radius:4px;padding:2px 6px;margin-top:3px;display:inline-block;}
 
   .card-upload{display:flex;flex-direction:column;align-items:center;gap:6px;}
   .upload-btn{background:#f3f4f6;border:1.5px dashed #aaa;border-radius:8px;padding:8px 14px;font-size:12px;color:#555;cursor:pointer;text-align:center;white-space:nowrap;}
@@ -37,15 +38,12 @@
 
   .thumb-wrap{position:relative;}
   .thumb{width:70px;height:70px;object-fit:cover;border-radius:6px;border:2px solid #16a34a;display:block;}
-  .thumb-del{position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+  .thumb-del{position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 
-  .upload-status{font-size:10px;margin-top:2px;max-width:80px;word-break:break-all;text-align:center;}
+  .upload-status{font-size:10px;margin-top:2px;max-width:90px;word-break:break-all;text-align:center;}
   .upload-status.uploading{color:#f59e0b;}
   .upload-status.done{color:#16a34a;}
   .upload-status.error{color:#dc2626;}
-
-  /* 이미 업로드된 사진 표시 */
-  .cloud-badge{font-size:10px;background:#dbeafe;color:#1a5fb4;border-radius:4px;padding:2px 6px;margin-top:2px;display:inline-block;}
 
   .empty{text-align:center;color:#999;padding:40px;font-size:13px;}
   .bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
@@ -58,7 +56,7 @@
 <body>
 
 <h1>📷 드론 사진 파일명 변환</h1>
-<p class="sub">사진을 선택하면 자동으로 파일명이 변환되어 클라우드에 저장됩니다. 다른 기기에서도 ZIP 다운로드가 가능합니다.</p>
+<p class="sub">사진을 선택하면 클라우드에 저장됩니다. 다른 기기에서 불러오기 하면 ZIP 다운로드가 가능합니다.</p>
 
 <div class="controls">
   <label>월 선택</label>
@@ -78,8 +76,8 @@
 </div>
 
 <div class="bar" id="actionBar" style="display:none;">
-  <span class="count-badge" id="countBadge">업로드 0 / 0</span>
-  <button class="btn-zip" id="btnZip" onclick="downloadZip()">📥 ZIP 다운로드</button>
+  <span class="count-badge" id="countBadge">☁️ 업로드 0 / 0</span>
+  <button class="btn-zip" id="btnZip" disabled onclick="downloadZip()">📥 ZIP 다운로드</button>
 </div>
 <div class="progress-bar-wrap" id="progressWrap">
   <div class="progress-bar" id="progressBar"></div>
@@ -95,8 +93,6 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const T_FLIGHTLOG = "drone_flight_log";
 const BUCKET = "drone-photos";
 
-// recordId → 서버에 저장된 파일경로
-const uploaded = {}; // { id: { path, filename } }
 let records = [];
 let filenames = [];
 
@@ -111,6 +107,14 @@ function getPhotoFilenames(recs) {
   });
 }
 
+function getPublicUrl(storagePath) {
+  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${storagePath}`;
+}
+
+function hdrs() {
+  return { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+}
+
 async function loadRecords() {
   const y = document.getElementById("sel-year").value;
   const m = document.getElementById("sel-month").value;
@@ -123,53 +127,18 @@ async function loadRecords() {
   msg.textContent = "불러오는 중...";
 
   try {
-    // 비행 기록 불러오기
+    // photo_path 포함해서 불러오기 — 업로드 여부를 DB에서 직접 판단
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${T_FLIGHTLOG}?log_datetime=gte.${y}-${mm}-01&log_datetime=lt.${nextY}-${nextMm}-01&select=id,log_datetime,flight_location,pilot_name&order=log_datetime.asc`,
-      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+      `${SUPABASE_URL}/rest/v1/${T_FLIGHTLOG}?log_datetime=gte.${y}-${mm}-01&log_datetime=lt.${nextY}-${nextMm}-01` +
+      `&select=id,log_datetime,flight_location,pilot_name,photo_path&order=log_datetime.asc`,
+      { headers: hdrs() }
     );
     if (!res.ok) throw new Error(await res.text());
     records = await res.json();
     filenames = getPhotoFilenames(records);
 
-    // 이미 업로드된 파일 목록 조회
-    const folder = `${y}${mm}`;
-    const listRes = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/list/${BUCKET}`,
-      {
-        method: "POST",
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ prefix: folder + "/", limit: 500 })
-      }
-    );
-    let existingFiles = [];
-    if (listRes.ok) {
-      existingFiles = await listRes.json();
-    }
-
-    // 업로드 상태 초기화
-    Object.keys(uploaded).forEach(k => delete uploaded[k]);
-    for (const f of existingFiles) {
-      // 파일명에서 record id 매칭 (파일명 기준)
-      const fname = f.name; // e.g. "record_42.jpg"
-      // record_ID.ext 형식으로 매칭
-      const match = fname.match(/^record_(\d+)(\.\w+)$/);
-      if (match) {
-        const rid = match[1];
-        const ext = match[2];
-        const rec = records.find(r => String(r.id) === rid);
-        if (rec) {
-          const i = records.indexOf(rec);
-          uploaded[rec.id] = { path: folder + "/" + fname, filename: filenames[i] + ext };
-        }
-      }
-    }
-
-    msg.textContent = `${records.length}건 로드됨 (업로드 ${Object.keys(uploaded).length}건)`;
+    const uploadedCount = records.filter(r => r.photo_path).length;
+    msg.textContent = `${records.length}건 로드됨 (업로드 ${uploadedCount}건)`;
     renderList();
   } catch(e) {
     msg.textContent = "실패: " + e.message;
@@ -194,33 +163,30 @@ function renderList() {
     const timePart = dt.includes("T") ? dt.slice(11, 16) : "";
     const loc = r.flight_location || "-";
     const fname = filenames[i];
-    const isUploaded = !!uploaded[r.id];
+    const hasPhoto = !!r.photo_path;
+    const thumbSrc = hasPhoto ? getPublicUrl(r.photo_path) : "";
 
     return `
-    <div class="card" id="card-${r.id}">
+    <div class="card${hasPhoto ? " has-photo" : ""}" id="card-${r.id}">
       <div class="card-info">
-        <div class="card-no">No.${i + 1} · ${r.pilot_name || ""}</div>
+        <div class="card-no">No.${i + 1}${r.pilot_name ? " · " + r.pilot_name : ""}</div>
         <div class="card-date">${datePart}${timePart ? " " + timePart : ""}</div>
         <div class="card-loc">📍 ${loc}</div>
-        <div class="card-filename">${fname}</div>
-        ${isUploaded ? `<span class="cloud-badge">☁️ 업로드됨: ${uploaded[r.id].filename}</span>` : ""}
+        <div class="card-filename" id="fname-${r.id}">${fname}</div>
+        ${hasPhoto ? `<span class="cloud-badge" id="badge-${r.id}">☁️ 업로드됨</span>` : `<span class="cloud-badge" id="badge-${r.id}" style="display:none">☁️ 업로드됨</span>`}
       </div>
       <div class="card-upload">
-        <label class="upload-btn" for="file-${r.id}">${isUploaded ? "🔄 교체" : "📁 사진 선택"}</label>
+        <label class="upload-btn" for="file-${r.id}" id="ulabel-${r.id}">${hasPhoto ? "🔄 교체" : "📁 사진 선택"}</label>
         <input type="file" id="file-${r.id}" accept="image/*" data-id="${r.id}" data-idx="${i}" onchange="handleFile(this)">
         <div id="thumb-${r.id}">
-          ${isUploaded ? `<img class="thumb" src="${getPublicUrl(uploaded[r.id].path)}" alt="${fname}" onerror="this.style.display='none'">` : ""}
+          ${hasPhoto ? `<div class="thumb-wrap"><img class="thumb" src="${thumbSrc}" alt="${fname}" onerror="this.style.display='none'"><button class="thumb-del" onclick="deleteFile('${r.id}','${r.photo_path}')" title="삭제">✕</button></div>` : ""}
         </div>
-        <div class="upload-status done" id="ustatus-${r.id}">${isUploaded ? "업로드 완료" : ""}</div>
+        <div class="upload-status${hasPhoto ? " done" : ""}" id="ustatus-${r.id}">${hasPhoto ? "업로드 완료 ✓" : ""}</div>
       </div>
     </div>`;
   }).join("");
 
   updateBadge();
-}
-
-function getPublicUrl(path) {
-  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
 }
 
 async function handleFile(input) {
@@ -230,65 +196,56 @@ async function handleFile(input) {
   const file = input.files[0];
   if (!file) return;
 
-  const ext = file.name.includes(".") ? "." + file.name.split(".").pop().toLowerCase() : ".jpg";
-  const newName = fname + ext; // ZIP에 저장될 실제 파일명 (한글 포함)
-
-  const y = document.getElementById("sel-year").value;
-  const m = document.getElementById("sel-month").value;
-  const mm = String(m).padStart(2, "0");
-  const folder = `${y}${mm}`;
-  // Storage 키는 ASCII만 허용 → record_ID.ext 형식 사용
-  const storagePath = `${folder}/record_${id}${ext}`;
+  const ext = "." + (file.name.split(".").pop().toLowerCase() || "jpg");
+  const displayName = fname + ext;                      // ZIP 저장용 파일명 (한글 포함)
+  const storagePath = `record_${id}${ext}`;             // Storage 키 (ASCII 전용)
 
   const statusEl = document.getElementById(`ustatus-${id}`);
-  const thumbEl = document.getElementById(`thumb-${id}`);
-
   statusEl.textContent = "업로드 중...";
   statusEl.className = "upload-status uploading";
 
   try {
-    // 기존 파일 삭제 후 업로드 (upsert)
+    // 1) Storage 업로드 (upsert)
     const uploadRes = await fetch(
       `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${storagePath}`,
       {
         method: "POST",
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
-          "Content-Type": file.type || "image/jpeg",
-          "x-upsert": "true"
-        },
+        headers: { ...hdrs(), "Content-Type": file.type || "image/jpeg", "x-upsert": "true" },
         body: file
       }
     );
+    if (!uploadRes.ok) throw new Error(await uploadRes.text());
 
-    if (!uploadRes.ok) {
-      const err = await uploadRes.text();
-      throw new Error(err);
-    }
+    // 2) DB에 photo_path 저장 → 다른 기기에서 불러올 때 사용
+    const patchRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/${T_FLIGHTLOG}?id=eq.${id}`,
+      {
+        method: "PATCH",
+        headers: { ...hdrs(), "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ photo_path: storagePath, photo_display_name: displayName })
+      }
+    );
+    if (!patchRes.ok) throw new Error(await patchRes.text());
 
-    uploaded[id] = { path: storagePath, filename: newName };
+    // records 배열 업데이트
+    const rec = records.find(r => String(r.id) === String(id));
+    if (rec) { rec.photo_path = storagePath; rec.photo_display_name = displayName; }
 
     statusEl.textContent = "업로드 완료 ✓";
     statusEl.className = "upload-status done";
 
     // 썸네일 표시
+    const thumbEl = document.getElementById(`thumb-${id}`);
     const url = URL.createObjectURL(file);
     thumbEl.innerHTML = `
       <div class="thumb-wrap">
-        <img class="thumb" src="${url}" alt="${newName}">
+        <img class="thumb" src="${url}" alt="${displayName}">
         <button class="thumb-del" onclick="deleteFile('${id}','${storagePath}')" title="삭제">✕</button>
       </div>`;
 
-    // 카드에 cloud badge 업데이트
-    const card = document.getElementById(`card-${id}`);
-    let badge = card.querySelector(".cloud-badge");
-    if (!badge) {
-      badge = document.createElement("span");
-      badge.className = "cloud-badge";
-      card.querySelector(".card-filename").after(badge);
-    }
-    badge.textContent = `☁️ 업로드됨: ${newName}`;
+    document.getElementById(`badge-${id}`).style.display = "inline-block";
+    document.getElementById(`ulabel-${id}`).textContent = "🔄 교체";
+    document.getElementById(`card-${id}`).classList.add("has-photo");
 
     updateBadge();
   } catch(e) {
@@ -297,36 +254,38 @@ async function handleFile(input) {
   }
 }
 
-async function deleteFile(id, path) {
+async function deleteFile(id, storagePath) {
   if (!confirm("이 사진을 삭제하시겠습니까?")) return;
 
-  await fetch(
-    `${SUPABASE_URL}/storage/v1/object/${BUCKET}`,
-    {
-      method: "DELETE",
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ prefixes: [path] })
-    }
-  );
+  // Storage 삭제
+  await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}`, {
+    method: "DELETE",
+    headers: { ...hdrs(), "Content-Type": "application/json" },
+    body: JSON.stringify({ prefixes: [storagePath] })
+  });
 
-  delete uploaded[id];
-  const thumbEl = document.getElementById(`thumb-${id}`);
-  thumbEl.innerHTML = "";
-  const statusEl = document.getElementById(`ustatus-${id}`);
-  statusEl.textContent = "";
-  const card = document.getElementById(`card-${id}`);
-  const badge = card.querySelector(".cloud-badge");
-  if (badge) badge.remove();
+  // DB photo_path 초기화
+  await fetch(`${SUPABASE_URL}/rest/v1/${T_FLIGHTLOG}?id=eq.${id}`, {
+    method: "PATCH",
+    headers: { ...hdrs(), "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify({ photo_path: null, photo_display_name: null })
+  });
+
+  const rec = records.find(r => String(r.id) === String(id));
+  if (rec) { rec.photo_path = null; rec.photo_display_name = null; }
+
+  document.getElementById(`thumb-${id}`).innerHTML = "";
+  document.getElementById(`ustatus-${id}`).textContent = "";
+  document.getElementById(`ustatus-${id}`).className = "upload-status";
+  document.getElementById(`badge-${id}`).style.display = "none";
+  document.getElementById(`ulabel-${id}`).textContent = "📁 사진 선택";
+  document.getElementById(`card-${id}`).classList.remove("has-photo");
   updateBadge();
 }
 
 function updateBadge() {
   const total = records.length;
-  const done = Object.keys(uploaded).length;
+  const done = records.filter(r => r.photo_path).length;
   document.getElementById("countBadge").textContent = `☁️ 업로드 ${done} / ${total}`;
   document.getElementById("btnZip").disabled = done === 0;
 }
@@ -342,18 +301,20 @@ async function downloadZip() {
   progressBar.style.width = "0%";
 
   const zip = new JSZip();
-  const entries = Object.values(uploaded);
+  const toDownload = records.filter(r => r.photo_path);
   let done = 0;
 
   try {
-    for (const { path, filename } of entries) {
-      const url = getPublicUrl(path);
+    for (const r of toDownload) {
+      const url = getPublicUrl(r.photo_path);
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`다운로드 실패: ${filename}`);
+      if (!res.ok) throw new Error(`다운로드 실패: ${r.photo_path}`);
       const blob = await res.blob();
-      zip.file(filename, blob);
+      // ZIP 내 파일명은 display_name (한글 포함) 사용
+      const saveAs = r.photo_display_name || r.photo_path;
+      zip.file(saveAs, blob);
       done++;
-      progressBar.style.width = `${Math.round(done / entries.length * 100)}%`;
+      progressBar.style.width = `${Math.round(done / toDownload.length * 100)}%`;
     }
 
     const blob = await zip.generateAsync({ type: "blob" });
@@ -371,6 +332,7 @@ async function downloadZip() {
   btn.disabled = false;
   btn.textContent = "📥 ZIP 다운로드";
   progressWrap.style.display = "none";
+  updateBadge();
 }
 
 // 오늘 날짜로 월 자동 선택
