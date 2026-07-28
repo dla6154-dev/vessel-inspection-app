@@ -335,24 +335,25 @@
   #opsTable select:focus{outline:1px solid #3b82f6;}
   /* 컬럼 너비 (합계 100%) */
   #opsTable col:nth-child(1){width:3%;}    /* No */
-  #opsTable col:nth-child(2){width:3.5%;}  /* 지사 */
+  #opsTable col:nth-child(2){width:3%;}    /* 지사 */
   #opsTable col:nth-child(3){width:7%;}    /* 활용일자 */
   #opsTable col:nth-child(4){width:4%;}    /* 드론종류 */
-  #opsTable col:nth-child(5){width:5.5%;}  /* 모니터링연계여부 */
-  #opsTable col:nth-child(6){width:7%;}    /* 분류 */
-  #opsTable col:nth-child(7){width:17%;}   /* 추진업무 */
-  #opsTable col:nth-child(8){width:6%;}    /* 지역 */
+  #opsTable col:nth-child(5){width:5%;}    /* 모니터링연계여부 */
+  #opsTable col:nth-child(6){width:6%;}    /* 분류 */
+  #opsTable col:nth-child(7){width:14%;}   /* 추진업무 */
+  #opsTable col:nth-child(8){width:10%;}   /* 지역 */
   #opsTable col:nth-child(9){width:4%;}    /* 항로 */
   #opsTable col:nth-child(10){width:4%;}   /* 선명 */
-  #opsTable col:nth-child(11){width:3.5%;} /* 횟수 */
+  #opsTable col:nth-child(11){width:3%;}   /* 횟수 */
   #opsTable col:nth-child(12){width:5%;}   /* 점검자 */
   #opsTable col:nth-child(13){width:5%;}   /* 자격급수 */
-  #opsTable col:nth-child(14){width:11%;}  /* 사진파일명 */
+  #opsTable col:nth-child(14){width:12%;}  /* 사진파일명 */
   #opsTable col:nth-child(15){width:7%;}   /* 기종 */
   #opsTable col:nth-child(16){width:5%;}   /* 운용시간(분) */
-  #opsTable col:nth-child(17){width:3.5%;} /* 비고 */
+  #opsTable col:nth-child(17){width:3%;}   /* 비고 */
   /* 줄바꿈 방지 셀 */
   #opsTable td:nth-child(3),
+  #opsTable td:nth-child(8),
   #opsTable td:nth-child(14){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .scroll-x{overflow-x:auto;}
   .empty{color:#999;text-align:center;padding:14px;font-size:12px;}
@@ -769,6 +770,10 @@
     <h3>✈ 비행 기록하기</h3>
 
     <h4 style="font-size:13px;margin:16px 0 6px;color:#444;">공통 정보</h4>
+    <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <label style="font-size:13px;font-weight:bold;">날짜</label>
+      <input type="date" id="master_date" style="font-size:14px;padding:6px 10px;border:1px solid #ccc;border-radius:6px;font-family:inherit;">
+    </div>
     <div id="masterCommonSlot"></div>
 
     <div class="entry-grid" style="margin-bottom:10px;">
@@ -1530,8 +1535,14 @@ async function postFlightLog(payload){
 function openMasterModal(){
   document.getElementById("masterCommonSlot").appendChild(document.getElementById("footerTable1"));
   calcFlightDuration();
+  // 날짜 동기화
+  const masterDate = document.getElementById("master_date");
+  masterDate.value = document.getElementById("f_date").value || new Date().toLocaleDateString("sv-SE");
   document.getElementById("masterModal").classList.add("open");
 }
+document.getElementById("master_date").addEventListener("change", function(){
+  document.getElementById("f_date").value = this.value;
+});
 function closeMasterModal(){
   document.getElementById("footerTable1Anchor").parentNode.insertBefore(
     document.getElementById("footerTable1"), document.getElementById("footerTable1Anchor"));
@@ -1636,6 +1647,7 @@ async function loadFlightLog(){
       <td class="approval-cell" data-id="${r.id}" data-field="shooting_approval" style="cursor:pointer;font-weight:bold;">${r.shooting_approval||"O"}</td>
       <td>${r.pilot_name||""}</td>
       <td class="left">${r.special_notes||""}</td>
+      <td><button class="del-log-btn" data-id="${r.id}" style="font-size:11px;padding:3px 7px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;">삭제</button></td>
     </tr>`).join("");
     tbody.querySelectorAll(".approval-cell").forEach(td=>{
       td.addEventListener("click", async ()=>{
@@ -1645,8 +1657,26 @@ async function loadFlightLog(){
         await patchApproval(td.dataset.id, td.dataset.field, nxt);
       });
     });
+    tbody.querySelectorAll(".del-log-btn").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        if(!confirm("이 비행 기록을 삭제하시겠습니까?")) return;
+        btn.textContent = "..."; btn.disabled = true;
+        try{
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/${T_FLIGHTLOG}?id=eq.${btn.dataset.id}`,{
+            method:"DELETE",
+            headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Prefer":"return=minimal"}
+          });
+          if(!res.ok) throw new Error(await res.text());
+          await loadFlightLog();
+          if(document.getElementById("tab3").classList.contains("active")) loadOpsTable();
+        }catch(e){
+          alert("삭제 실패: "+e.message);
+          btn.textContent="삭제"; btn.disabled=false;
+        }
+      });
+    });
   }catch(err){
-    tbody.innerHTML = `<tr><td colspan="15" class="empty">불러오기 실패: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="16" class="empty">불러오기 실패: ${err.message}</td></tr>`;
   }
 }
 document.getElementById("lg_reg").addEventListener("change", loadFlightLog);
