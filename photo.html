@@ -155,14 +155,18 @@ async function loadRecords() {
     Object.keys(uploaded).forEach(k => delete uploaded[k]);
     for (const f of existingFiles) {
       // 파일명에서 record id 매칭 (파일명 기준)
-      const fname = f.name; // e.g. "0728.목포.1.진도항_여객터미널.jpg"
-      // filenames 배열에서 일치하는 것 찾기 (공백→_ 치환 후 비교)
-      records.forEach((r, i) => {
-        const safeBase = filenames[i].replace(/ /g, "_");
-        if (fname.startsWith(safeBase + ".") || fname === safeBase) {
-          uploaded[r.id] = { path: folder + "/" + fname, filename: filenames[i] + fname.slice(fname.lastIndexOf(".")) };
+      const fname = f.name; // e.g. "record_42.jpg"
+      // record_ID.ext 형식으로 매칭
+      const match = fname.match(/^record_(\d+)(\.\w+)$/);
+      if (match) {
+        const rid = match[1];
+        const ext = match[2];
+        const rec = records.find(r => String(r.id) === rid);
+        if (rec) {
+          const i = records.indexOf(rec);
+          uploaded[rec.id] = { path: folder + "/" + fname, filename: filenames[i] + ext };
         }
-      });
+      }
     }
 
     msg.textContent = `${records.length}건 로드됨 (업로드 ${Object.keys(uploaded).length}건)`;
@@ -227,14 +231,14 @@ async function handleFile(input) {
   if (!file) return;
 
   const ext = file.name.includes(".") ? "." + file.name.split(".").pop().toLowerCase() : ".jpg";
-  const newName = fname + ext;
-  const safeKey = newName.replace(/ /g, "_"); // Storage 키에 공백 불허
+  const newName = fname + ext; // ZIP에 저장될 실제 파일명 (한글 포함)
 
   const y = document.getElementById("sel-year").value;
   const m = document.getElementById("sel-month").value;
   const mm = String(m).padStart(2, "0");
   const folder = `${y}${mm}`;
-  const storagePath = `${folder}/${safeKey}`;
+  // Storage 키는 ASCII만 허용 → record_ID.ext 형식 사용
+  const storagePath = `${folder}/record_${id}${ext}`;
 
   const statusEl = document.getElementById(`ustatus-${id}`);
   const thumbEl = document.getElementById(`thumb-${id}`);
