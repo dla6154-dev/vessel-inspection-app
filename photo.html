@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>드론 사진 파일명 변환</title>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif;background:#f3f4f6;color:#111;padding:16px;}
+  h1{font-size:18px;font-weight:bold;margin-bottom:4px;}
+  .sub{font-size:12px;color:#666;margin-bottom:16px;}
+
+  .controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid #ddd;border-radius:10px;padding:12px 16px;margin-bottom:14px;}
+  .controls label{font-size:13px;font-weight:bold;}
+  select{font-size:13px;padding:6px 10px;border:1px solid #ccc;border-radius:6px;}
+  button{font-size:13px;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-family:inherit;}
+  .btn-load{background:#1a5fb4;color:#fff;}
+  .btn-zip{background:#16a34a;color:#fff;font-weight:bold;padding:10px 20px;}
+  .btn-zip:disabled{background:#9ca3af;cursor:not-allowed;}
+
+  .status{font-size:12px;color:#555;margin-left:4px;}
+
+  .list{display:flex;flex-direction:column;gap:10px;}
+
+  .card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .card-info{flex:1;min-width:180px;}
+  .card-no{font-size:11px;color:#888;margin-bottom:2px;}
+  .card-date{font-size:13px;font-weight:bold;color:#1a5fb4;}
+  .card-loc{font-size:12px;color:#444;margin-top:2px;}
+  .card-filename{font-size:11px;color:#16a34a;margin-top:4px;font-family:monospace;word-break:break-all;}
+
+  .card-upload{display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .upload-btn{background:#f3f4f6;border:1.5px dashed #aaa;border-radius:8px;padding:8px 14px;font-size:12px;color:#555;cursor:pointer;text-align:center;white-space:nowrap;}
+  .upload-btn:hover{background:#e5e7eb;}
+  input[type="file"]{display:none;}
+
+  .thumb-wrap{position:relative;}
+  .thumb{width:70px;height:70px;object-fit:cover;border-radius:6px;border:2px solid #16a34a;display:block;}
+  .thumb-del{position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+
+  .empty{text-align:center;color:#999;padding:40px;font-size:13px;}
+  .bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .count-badge{background:#1a5fb4;color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;}
+</style>
+</head>
+<body>
+
+<h1>📷 드론 사진 파일명 변환</h1>
+<p class="sub">비행 기록을 불러와 사진을 선택하면 파일명이 자동으로 변환됩니다.</p>
+
+<div class="controls">
+  <label>월 선택</label>
+  <select id="sel-year">
+    <option value="2025">2025년</option>
+    <option value="2026" selected>2026년</option>
+    <option value="2027">2027년</option>
+  </select>
+  <select id="sel-month">
+    <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+    <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+    <option value="7" selected>7월</option><option value="8">8월</option><option value="9">9월</option>
+    <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+  </select>
+  <button class="btn-load" onclick="loadRecords()">불러오기</button>
+  <span class="status" id="loadMsg"></span>
+</div>
+
+<div class="bar" id="actionBar" style="display:none;">
+  <span class="count-badge" id="countBadge">0 / 0 선택됨</span>
+  <button class="btn-zip" id="btnZip" disabled onclick="downloadZip()">📥 ZIP 다운로드</button>
+</div>
+
+<div class="list" id="list">
+  <div class="empty">위에서 월을 선택하고 불러오기를 누르세요.</div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://fnpsaypaxpxyyqmrqwai.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZucHNheXBheHB4eXlxbXJxd2FpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5OTc1NzYsImV4cCI6MjA4OTU3MzU3Nn0.yZir2n-zxnbedVdIKwpqJAnWjuwEp96jIYjOY6cNPe4";
+const T_FLIGHTLOG = "drone_flight_log";
+
+// id → { file, filename }
+const selected = {};
+let records = [];
+
+function getPhotoFilenames(recs) {
+  const dateSeq = {};
+  return recs.map(r => {
+    const dateStr = r.log_datetime ? r.log_datetime.slice(0, 10) : "";
+    const mmdd = dateStr.slice(5).replace("-", "");
+    const loc = r.flight_location || "";
+    dateSeq[dateStr] = (dateSeq[dateStr] || 0) + 1;
+    return mmdd ? `${mmdd}.목포.${dateSeq[dateStr]}.${loc}` : `unknown.${r.id}`;
+  });
+}
+
+async function loadRecords() {
+  const y = document.getElementById("sel-year").value;
+  const m = document.getElementById("sel-month").value;
+  const mm = String(m).padStart(2, "0");
+  const mInt = parseInt(m);
+  const nextY = mInt === 12 ? String(parseInt(y) + 1) : y;
+  const nextMm = mInt === 12 ? "01" : String(mInt + 1).padStart(2, "0");
+
+  const msg = document.getElementById("loadMsg");
+  msg.textContent = "불러오는 중...";
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${T_FLIGHTLOG}?log_datetime=gte.${y}-${mm}-01&log_datetime=lt.${nextY}-${nextMm}-01&select=id,log_datetime,flight_location,pilot_name&order=log_datetime.asc`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!res.ok) throw new Error(await res.text());
+    records = await res.json();
+    msg.textContent = `${records.length}건 로드됨`;
+    renderList();
+  } catch(e) {
+    msg.textContent = "실패: " + e.message;
+  }
+}
+
+function renderList() {
+  const list = document.getElementById("list");
+  const bar = document.getElementById("actionBar");
+
+  if (!records.length) {
+    list.innerHTML = '<div class="empty">이 달의 비행 기록이 없습니다.</div>';
+    bar.style.display = "none";
+    return;
+  }
+
+  bar.style.display = "flex";
+  const filenames = getPhotoFilenames(records);
+
+  list.innerHTML = records.map((r, i) => {
+    const dt = r.log_datetime || "";
+    const datePart = dt.slice(0, 10);
+    const timePart = dt.includes("T") ? dt.slice(11, 16) : "";
+    const loc = r.flight_location || "-";
+    const fname = filenames[i];
+    const ext = fname.replace(/[^.]+$/, "");
+
+    return `
+    <div class="card" id="card-${r.id}">
+      <div class="card-info">
+        <div class="card-no">No.${i + 1} · ${r.pilot_name || ""}</div>
+        <div class="card-date">${datePart}${timePart ? " " + timePart : ""}</div>
+        <div class="card-loc">📍 ${loc}</div>
+        <div class="card-filename" id="fname-${r.id}">${fname}</div>
+      </div>
+      <div class="card-upload">
+        <label class="upload-btn" for="file-${r.id}">📁 사진 선택</label>
+        <input type="file" id="file-${r.id}" accept="image/*" data-id="${r.id}" data-fname="${fname}" onchange="handleFile(this)">
+        <div id="thumb-${r.id}"></div>
+      </div>
+    </div>`;
+  }).join("");
+
+  updateBadge();
+}
+
+function handleFile(input) {
+  const id = input.dataset.id;
+  const fname = input.dataset.fname;
+  const file = input.files[0];
+  if (!file) return;
+
+  const ext = file.name.includes(".") ? "." + file.name.split(".").pop().toLowerCase() : ".jpg";
+  const newName = fname + ext;
+
+  selected[id] = { file, filename: newName };
+
+  const thumbWrap = document.getElementById(`thumb-${id}`);
+  const url = URL.createObjectURL(file);
+  thumbWrap.innerHTML = `
+    <div class="thumb-wrap">
+      <img class="thumb" src="${url}" alt="${newName}">
+      <button class="thumb-del" onclick="removeFile('${id}')" title="취소">✕</button>
+    </div>
+    <div style="font-size:10px;color:#16a34a;margin-top:2px;max-width:80px;word-break:break-all;">${newName}</div>`;
+
+  updateBadge();
+}
+
+function removeFile(id) {
+  delete selected[id];
+  const thumbWrap = document.getElementById(`thumb-${id}`);
+  thumbWrap.innerHTML = "";
+  const fileInput = document.getElementById(`file-${id}`);
+  fileInput.value = "";
+  updateBadge();
+}
+
+function updateBadge() {
+  const total = records.length;
+  const done = Object.keys(selected).length;
+  document.getElementById("countBadge").textContent = `${done} / ${total} 선택됨`;
+  document.getElementById("btnZip").disabled = done === 0;
+}
+
+async function downloadZip() {
+  const btn = document.getElementById("btnZip");
+  btn.disabled = true;
+  btn.textContent = "압축 중...";
+
+  const zip = new JSZip();
+  for (const { file, filename } of Object.values(selected)) {
+    zip.file(filename, file);
+  }
+
+  try {
+    const blob = await zip.generateAsync({ type: "blob" });
+    const y = document.getElementById("sel-year").value;
+    const m = document.getElementById("sel-month").value;
+    const mm = String(m).padStart(2, "0");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `드론사진_${y}${mm}.zip`;
+    a.click();
+  } catch(e) {
+    alert("ZIP 생성 실패: " + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = "📥 ZIP 다운로드";
+}
+
+// 오늘 날짜로 월 자동 선택
+const now = new Date();
+document.getElementById("sel-year").value = String(now.getFullYear());
+document.getElementById("sel-month").value = String(now.getMonth() + 1);
+</script>
+</body>
+</html>

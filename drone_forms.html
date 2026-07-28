@@ -1057,11 +1057,19 @@ async function loadOpsTable(){
       tbody.innerHTML = `<tr><td colspan="17" class="empty">이 달의 비행 기록이 없습니다.</td></tr>`;
       return;
     }
+    // 날짜별 순번 계산
+    const dateCounter = {};
+    records.forEach(r=>{
+      const d = r.log_datetime ? r.log_datetime.slice(0,10) : "";
+      dateCounter[d] = (dateCounter[d]||0) + 1;
+    });
+    const dateSeq = {};
     tbody.innerHTML = records.map((r,i)=>{
       const dateStr = r.log_datetime ? r.log_datetime.slice(0,10) : "";
       const mmdd = dateStr.slice(5).replace("-","");
       const loc = r.flight_location || "";
-      const photoName = mmdd ? `${mmdd}.목포.${i+1}.${loc}` : "";
+      dateSeq[dateStr] = (dateSeq[dateStr]||0) + 1;
+      const photoName = mmdd ? `${mmdd}.목포.${dateSeq[dateStr]}.${loc}` : "";
       const cat = opsCatFromPurpose(r.purpose);
       const aircraft = opsAircraftFromReg(r.registration_no);
       return `<tr>
