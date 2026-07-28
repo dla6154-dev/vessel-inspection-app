@@ -3,7 +3,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>무인비행장치 전자 서식</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
   :root{
     --line:#000;
@@ -1706,26 +1706,107 @@ document.getElementById("btnPrint2").addEventListener("click", ()=>window.print(
 document.getElementById("btnExcelOps").addEventListener("click", ()=>{
   const y = document.getElementById("ops-year").value;
   const m = document.getElementById("ops-month").value;
-  const headers = ["No","지사","활용일자","드론종류","모니터링연계여부","분류","추진업무","지역","항로","선명","횟수","점검자","자격급수","사진파일명","기종","운용시간(분)","비고"];
-  const rows = [];
+  const mm = String(m).padStart(2,"0");
+
+  // 데이터 수집
+  const dataRows = [];
   document.querySelectorAll("#opsBody tr").forEach(tr=>{
     const tds = tr.querySelectorAll("td");
     if(tds.length < 17) return;
-    const cell = (i) => {
-      const td = tds[i];
-      const sel = td.querySelector("select");
-      if(sel) return sel.value;
-      return td.textContent.trim();
-    };
-    rows.push(headers.map((_,i) => cell(i)));
+    const cell = (i)=>{ const td=tds[i]; const s=td.querySelector("select"); return s?s.value:td.textContent.trim(); };
+    const dur = cell(15).replace(/[^\d]/g,"");
+    dataRows.push([
+      parseInt(cell(0))||"",  // No
+      cell(1),                 // 지사
+      cell(2),                 // 활용일자
+      cell(3),                 // 드론종류
+      cell(4).toLowerCase(),   // 모니터링 (o/x)
+      cell(5),                 // 분류
+      cell(6),                 // 추진업무
+      cell(7),                 // 지역
+      cell(8)||"-",            // 항로
+      cell(9),                 // 선명
+      cell(10),                // 횟수
+      cell(11),                // 점검자
+      cell(12),                // 자격급수
+      cell(13),                // 사진파일명
+      cell(14),                // 기종
+      dur ? parseInt(dur) : "", // 운용시간(분)
+      cell(16),                // 비고
+    ]);
   });
-  if(!rows.length){ alert("내보낼 데이터가 없습니다."); return; }
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  // 컬럼 너비 설정
-  ws["!cols"] = [4,6,12,8,10,10,30,12,8,8,6,8,8,18,10,10,8].map(w=>({wch:w}));
+  if(!dataRows.length){ alert("내보낼 데이터가 없습니다."); return; }
+
+  // 스타일 정의
+  const thin = { style:"thin", color:{ rgb:"000000" } };
+  const border = { top:thin, bottom:thin, left:thin, right:thin };
+  const titleSt = {
+    font:{ name:"맑은 고딕", sz:12, bold:true },
+    alignment:{ horizontal:"center", vertical:"center" }
+  };
+  const hdrSt = {
+    font:{ name:"맑은 고딕", sz:8, bold:true },
+    alignment:{ horizontal:"center", vertical:"center", wrapText:true },
+    fill:{ fgColor:{ rgb:"D9E1F2" }, patternType:"solid" },
+    border
+  };
+  const ctrSt = {
+    font:{ name:"맑은 고딕", sz:8 },
+    alignment:{ horizontal:"center", vertical:"center" },
+    border
+  };
+  const leftSt = {
+    font:{ name:"맑은 고딕", sz:8 },
+    alignment:{ horizontal:"left", vertical:"center" },
+    border
+  };
+  // 왼쪽 정렬 컬럼: 추진업무(6), 지역(7), 항로(8), 선명(9), 비고(16)
+  const leftCols = new Set([6,7,8,9,16]);
+
+  // 워크시트 수동 구성
+  const ws = {};
+  const nDataRows = dataRows.length;
+  const lastRow = 3 + nDataRows; // 1-based
+  ws["!ref"] = `A1:Q${lastRow}`;
+
+  // 행1: 제목
+  ws["A1"] = { v:`${y}년 ${m}월 드론 운용 실적 보고서 (종합)`, t:"s", s:titleSt };
+
+  // 행2: 빈 행 (spacer)
+
+  // 행3: 헤더
+  const HEADERS = ["No","지 사","활용일자","드론 종류","모니터링\n연계 여부","분 류","추진 업무","지 역","항 로","선 명","횟 수","점 검 자","자격급수","사진 파일명","기 종","운용시간(분)","비 고"];
+  HEADERS.forEach((h,ci)=>{
+    const addr = XLSX.utils.encode_cell({r:2, c:ci});
+    ws[addr] = { v:h, t:"s", s:hdrSt };
+  });
+
+  // 행4~: 데이터
+  dataRows.forEach((row, ri)=>{
+    row.forEach((v, ci)=>{
+      const addr = XLSX.utils.encode_cell({r:3+ri, c:ci});
+      const t = typeof v==="number" ? "n" : "s";
+      ws[addr] = { v:v==null?"":v, t, s: leftCols.has(ci)?leftSt:ctrSt };
+    });
+  });
+
+  // 병합: A1:Q1 제목
+  ws["!merges"] = [{ s:{r:0,c:0}, e:{r:0,c:16} }];
+
+  // 열 너비 (원본 기준)
+  ws["!cols"] = [3.625,6.25,8.75,7.625,5.5,15,35.375,12.75,14.25,17.375,4.75,9.125,7,28.5,10.875,9.5,38].map(w=>({wch:w}));
+
+  // 행 높이
+  ws["!rows"] = [
+    {hpt:40},  // 제목
+    {hpt:20},  // 빈 행
+    {hpt:22},  // 헤더
+    ...dataRows.map(()=>({hpt:16.5}))
+  ];
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, `${y}년${m}월 운용실적`);
-  XLSX.writeFile(wb, `드론운용실적_${y}${String(m).padStart(2,"0")}.xlsx`);
+  XLSX.writeFile(wb, `드론운용실적_${y}${mm}.xlsx`);
 });
 
 /* 초기화 */
