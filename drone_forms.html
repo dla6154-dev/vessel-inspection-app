@@ -332,6 +332,18 @@
   .ops-photo{font-size:10px;word-break:break-all;text-align:left;}
   #opsTable select{font-size:11px;width:100%;border:none;background:transparent;outline:none;}
   #opsTable select:focus{outline:1px solid #3b82f6;}
+  #opsTable th:nth-child(6){min-width:90px;}   /* 분류 */
+  #opsTable th:nth-child(7){min-width:200px;}  /* 추진업무 */
+  #opsTable th:nth-child(1){width:36px;}       /* No */
+  #opsTable th:nth-child(2){width:44px;}       /* 지사 */
+  #opsTable th:nth-child(3){width:88px;}       /* 활용일자 */
+  #opsTable th:nth-child(4){width:52px;}       /* 드론종류 */
+  #opsTable th:nth-child(5){width:70px;}       /* 모니터링연계여부 */
+  #opsTable th:nth-child(8){min-width:80px;}   /* 지역 */
+  #opsTable th:nth-child(9){min-width:50px;}   /* 항로 */
+  #opsTable th:nth-child(10){min-width:50px;}  /* 선명 */
+  #opsTable th:nth-child(11){width:44px;}      /* 횟수 */
+  #opsTable th:nth-child(15){min-width:80px;}  /* 기종 */
   .scroll-x{overflow-x:auto;}
   .empty{color:#999;text-align:center;padding:14px;font-size:12px;}
 
@@ -1359,10 +1371,20 @@ document.getElementById("btnAutoWeather").addEventListener("click", async () => 
   if(!stationSel.value){ msg.textContent = "날씨 관측소를 먼저 선택해 주세요."; msg.style.color = "#dc2626"; return; }
   msg.textContent = "불러오는 중...";
   msg.style.color = "#666";
-  try {
+  const tryFetch = async () => {
     const res = await fetch(`https://mokpo-weather-dashboard.onrender.com/api/sfc/obs?stn=${station}`);
     const d = await res.json();
     if (!d.ok) throw new Error(d.error || "오류");
+    return d;
+  };
+  try {
+    let d;
+    try { d = await tryFetch(); }
+    catch(e1) {
+      msg.textContent = "재시도 중... (서버 워밍업)";
+      await new Promise(r => setTimeout(r, 3000));
+      d = await tryFetch();
+    }
     document.getElementById("f_wind").value = d.wind_range;
     document.getElementById("f_temp").value = d.temperature;
     document.getElementById("f_visibility").value = d.visibility_km;
