@@ -443,6 +443,9 @@
     /* A4 가득 채우기: tbody 각 행 높이 고정 */
     table.checklist tbody tr { height: 11.7mm; }
     table.checklist { width:100%; }
+    /* 비행기록부: 줄바꿈 없이 한 줄로 */
+    table.flightlog { font-size: 8pt; width: 100%; table-layout: auto; }
+    table.flightlog td, table.flightlog th { white-space: nowrap; }
     table.footer-table input,
     table.footer-table select {
       border:none !important; border-radius:0 !important;
