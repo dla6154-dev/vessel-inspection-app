@@ -429,9 +429,6 @@
 
   @media print{
     @page { size: A4 portrait; margin: 10mm; }
-    /* Tab3 활성 시 가로 인쇄 */
-    #tab3.active ~ * { display: none !important; }
-    body:has(#tab3.active) { @page { size: A4 landscape; margin: 8mm; } }
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     body { background:#fff; padding:0; margin:0; }
     .topbar, .tabs, .action-bar, .modal-overlay, .sig-actions, .btn-open-entry, .home-card, .no-print { display:none !important; }
@@ -1492,6 +1489,19 @@ document.getElementById("btnAutoWeather").addEventListener("click", async () => 
 
 document.getElementById("btnSave1").addEventListener("click", saveChecklist);
 document.getElementById("btnNew1").addEventListener("click", resetChecklistForm);
+// 인쇄 시 활성 탭에 따라 @page 방향 전환
+const dynPageStyle = document.createElement("style");
+document.head.appendChild(dynPageStyle);
+window.addEventListener("beforeprint", ()=>{
+  const activeId = document.querySelector(".panel.active")?.id;
+  if(activeId === "tab2"){
+    dynPageStyle.textContent = "@page { size: A4 landscape; margin: 8mm; }";
+  } else {
+    dynPageStyle.textContent = "@page { size: A4 portrait; margin: 10mm; }";
+  }
+});
+window.addEventListener("afterprint", ()=>{ dynPageStyle.textContent = ""; });
+
 document.getElementById("btnPrint1").addEventListener("click", ()=>window.print());
 
 function hhmmToMinutes(v){
