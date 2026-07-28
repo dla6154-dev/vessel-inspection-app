@@ -326,24 +326,34 @@
   /* 운용실적 토글·편집 셀 */
   td.ops-toggle{cursor:pointer;user-select:none;font-weight:bold;}
   td.ops-toggle:hover{background:var(--blue-light,#dbeafe);}
-  td[contenteditable="true"].ops-edit{cursor:text;min-width:40px;}
+  td[contenteditable="true"].ops-edit{cursor:text;}
   td[contenteditable="true"].ops-edit:focus{outline:2px solid #f59e0b;outline-offset:-2px;background:#fffbeb;}
-  td[contenteditable="true"].ops-edit:empty::before{content:attr(data-placeholder);color:#bbb;font-size:10px;pointer-events:none;}
-  .ops-photo{font-size:10px;word-break:break-all;text-align:left;}
-  #opsTable select{font-size:11px;width:100%;border:none;background:transparent;outline:none;}
+  td[contenteditable="true"].ops-edit:empty::before{content:attr(data-placeholder);color:#bbb;font-size:9px;pointer-events:none;}
+  .ops-photo{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;}
+  #opsTable{table-layout:fixed;width:100%;font-size:10px;}
+  #opsTable select{font-size:10px;width:100%;border:none;background:transparent;outline:none;}
   #opsTable select:focus{outline:1px solid #3b82f6;}
-  #opsTable th:nth-child(6){min-width:90px;}   /* 분류 */
-  #opsTable th:nth-child(7){min-width:260px;}  /* 추진업무 */
-  #opsTable th:nth-child(1){width:36px;}       /* No */
-  #opsTable th:nth-child(2){width:44px;}       /* 지사 */
-  #opsTable th:nth-child(3){width:88px;}       /* 활용일자 */
-  #opsTable th:nth-child(4){width:52px;}       /* 드론종류 */
-  #opsTable th:nth-child(5){width:70px;}       /* 모니터링연계여부 */
-  #opsTable th:nth-child(8){min-width:80px;}   /* 지역 */
-  #opsTable th:nth-child(9){min-width:50px;}   /* 항로 */
-  #opsTable th:nth-child(10){min-width:50px;}  /* 선명 */
-  #opsTable th:nth-child(11){width:44px;}      /* 횟수 */
-  #opsTable th:nth-child(15){min-width:80px;}  /* 기종 */
+  /* 컬럼 너비 (합계 100%) */
+  #opsTable col:nth-child(1){width:3%;}    /* No */
+  #opsTable col:nth-child(2){width:3.5%;}  /* 지사 */
+  #opsTable col:nth-child(3){width:7%;}    /* 활용일자 */
+  #opsTable col:nth-child(4){width:4%;}    /* 드론종류 */
+  #opsTable col:nth-child(5){width:5.5%;}  /* 모니터링연계여부 */
+  #opsTable col:nth-child(6){width:7%;}    /* 분류 */
+  #opsTable col:nth-child(7){width:17%;}   /* 추진업무 */
+  #opsTable col:nth-child(8){width:6%;}    /* 지역 */
+  #opsTable col:nth-child(9){width:4%;}    /* 항로 */
+  #opsTable col:nth-child(10){width:4%;}   /* 선명 */
+  #opsTable col:nth-child(11){width:3.5%;} /* 횟수 */
+  #opsTable col:nth-child(12){width:5%;}   /* 점검자 */
+  #opsTable col:nth-child(13){width:5%;}   /* 자격급수 */
+  #opsTable col:nth-child(14){width:11%;}  /* 사진파일명 */
+  #opsTable col:nth-child(15){width:7%;}   /* 기종 */
+  #opsTable col:nth-child(16){width:5%;}   /* 운용시간(분) */
+  #opsTable col:nth-child(17){width:3.5%;} /* 비고 */
+  /* 줄바꿈 방지 셀 */
+  #opsTable td:nth-child(3),
+  #opsTable td:nth-child(14){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .scroll-x{overflow-x:auto;}
   .empty{color:#999;text-align:center;padding:14px;font-size:12px;}
 
@@ -687,6 +697,10 @@
     <h1 class="title">드론 운용 실적 보고서</h1>
     <div class="scroll-x">
       <table class="flightlog" id="opsTable">
+        <colgroup>
+          <col><col><col><col><col><col><col><col><col>
+          <col><col><col><col><col><col><col><col>
+        </colgroup>
         <thead>
           <tr>
             <th>No</th><th>지사</th><th>활용일자</th>
