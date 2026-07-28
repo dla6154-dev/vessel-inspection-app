@@ -1936,7 +1936,7 @@ document.getElementById("btnExcelOps").addEventListener("click", ()=>{
   // 행2: 빈 행 (spacer)
 
   // 행3: 헤더
-  const HEADERS = ["No","지 사","활용일자","드론 종류","모니터링\n연계 여부","분 류","추진 업무","지 역","항 로","선 명","횟 수","점 검 자","자격급수","사진 파일명","기 종","운용시간(분)","비 고"];
+  const HEADERS = ["No","지 사","활용일자","드론 종류","모니터링 \n연계 여부","분 류","추진 업무","지 역","항 로","선 명","횟 수","점 검 자 ","자격급수","사진 파일명","기 종","운용시간(분)","비 고"];
   HEADERS.forEach((h,ci)=>{
     const addr = XLSX.utils.encode_cell({r:2, c:ci});
     ws[addr] = { v:h, t:"s", s:hdrSt };
@@ -1954,8 +1954,15 @@ document.getElementById("btnExcelOps").addEventListener("click", ()=>{
   // 병합: A1:Q1 제목
   ws["!merges"] = [{ s:{r:0,c:0}, e:{r:0,c:16} }];
 
-  // 열 너비 (원본 기준)
-  ws["!cols"] = [3.625,6.25,8.75,7.625,5.5,15,35.375,12.75,14.25,17.375,4.75,9.125,7,28.5,10.875,9.5,38].map(w=>({wch:w}));
+  // 열 너비 — SheetJS는 wch를 실제 Excel 너비보다 +0.832로 저장하므로 보정값 적용
+  // 원본: A=3.625 B=6.25 C=8.75 D=7.625 E=없음 F=15 G=35.375 H=12.75 I=14.25 J=17.375 K=4.75 L=9.125 M=7 N=28.5 O=10.875 P=9.5 Q=38
+  const adj = (w) => ({ wch: w - 0.832 });
+  ws["!cols"] = [
+    adj(3.625), adj(6.25), adj(8.75), adj(7.625),
+    {},                   // E: 원본에 너비 설정 없음 (default)
+    adj(15), adj(35.375), adj(12.75), adj(14.25), adj(17.375),
+    adj(4.75), adj(9.125), adj(7), adj(28.5), adj(10.875), adj(9.5), adj(38)
+  ];
 
   // 행 높이
   ws["!rows"] = [
