@@ -631,7 +631,10 @@
     <table class="footer-table reg-box" id="flightInfoTable2">
       <tbody><tr>
         <td class="label">등록번호</td>
-        <td><select id="lg_reg" data-sync="reg_no"><option value="운항-25-04(AIR3S/DJI)">운항-25-04(AIR3S/DJI)</option></select></td>
+        <td style="display:flex;align-items:center;gap:6px;border:none;">
+          <select id="lg_reg" data-sync="reg_no" style="flex:1;"></select>
+          <button onclick="openAircraftMgr()" style="font-size:11px;padding:4px 8px;border:1px solid #ccc;border-radius:5px;background:#f8f8f8;cursor:pointer;white-space:nowrap;">⚙ 기체 관리</button>
+        </td>
       </tr>
       <tr>
         <td class="label">신고번호</td>
@@ -807,6 +810,25 @@
 </div>
 
 <!-- 서명 등록 모달 -->
+<!-- 기체 관리 모달 -->
+<div class="modal-overlay" id="aircraftMgrModal">
+  <div class="modal-box" style="max-width:480px;">
+    <h3>기체 관리</h3>
+    <div id="aircraftList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;max-height:300px;overflow-y:auto;"></div>
+    <div style="border-top:1px solid #eee;padding-top:12px;">
+      <div style="font-size:13px;font-weight:bold;margin-bottom:8px;">새 기체 추가</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <input type="text" id="newRegNo" placeholder="등록번호 (예: 운항-26-03)" style="flex:2;min-width:150px;padding:7px 9px;border:1px solid #ccc;border-radius:6px;font-size:13px;font-family:inherit;">
+        <input type="text" id="newModel" placeholder="기종 (예: AIR3S)" style="flex:1;min-width:80px;padding:7px 9px;border:1px solid #ccc;border-radius:6px;font-size:13px;font-family:inherit;">
+        <button onclick="addAircraft()" style="padding:7px 14px;background:#1a5fb4;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;">추가</button>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="secondary" onclick="closeAircraftMgr()">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="signatureModal">
   <div class="modal-box" style="max-width:360px;">
     <h3>서명 등록</h3>
@@ -891,9 +913,31 @@ const T_CHECKLIST = "drone_inspection_records";
 const T_SIGNATURE = "pilot_signatures";
 const T_FLIGHTLOG = "drone_flight_log";
 
-const AIRCRAFT_LIST = [
-  "운항-25-04(AIR3S/DJI)"
-];
+let AIRCRAFT_LIST = [];  // DB에서 동적으로 로드
+
+async function loadAircraftList(){
+  try{
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/drone_aircraft?active=eq.true&order=id.asc&select=reg_no,model,id`,
+      { headers:{ "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` } }
+    );
+    if(!res.ok) throw new Error(await res.text());
+    const rows = await res.json();
+    AIRCRAFT_LIST = rows.map(r => r.reg_no);
+    _aircraftRows = rows; // 관리 UI용
+    populateAircraftSelects();
+    // localStorage 마지막 선택 복원
+    const last = localStorage.getItem("drn_last_reg");
+    const validLast = last && AIRCRAFT_LIST.includes(last) ? last : AIRCRAFT_LIST[0];
+    document.querySelectorAll('[data-sync="reg_no"]').forEach(el => el.value = validLast);
+    if(document.getElementById("whoamiReg")) document.getElementById("whoamiReg").textContent = validLast;
+    loadFlightLog();
+  } catch(e){
+    console.error("기체 목록 로드 실패:", e);
+  }
+}
+
+let _aircraftRows = [];
 
 const TASK_CATEGORY = {
   "1. 3D 맵핑 활용": "드론촬영 및 교육",
@@ -1888,7 +1932,74 @@ document.getElementById("btnSaveEditLog").addEventListener("click", async ()=>{
 });
 // ─────────────────────────────────────────────────────
 
-document.getElementById("lg_reg").addEventListener("change", loadFlightLog);
+document.getElementById("lg_reg").addEventListener("change", function(){
+  localStorage.setItem("drn_last_reg", this.value);
+  loadFlightLog();
+});
+
+/* ── 기체 관리 ── */
+function openAircraftMgr(){
+  renderAircraftList();
+  document.getElementById("aircraftMgrModal").classList.add("open");
+}
+function closeAircraftMgr(){
+  document.getElementById("aircraftMgrModal").classList.remove("open");
+}
+
+function renderAircraftList(){
+  const container = document.getElementById("aircraftList");
+  if(!_aircraftRows.length){ container.innerHTML = '<div style="color:#999;font-size:13px;">등록된 기체가 없습니다.</div>'; return; }
+  container.innerHTML = _aircraftRows.map(r => `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:${r.active?'#f0f7ff':'#f5f5f5'};border:1px solid ${r.active?'#bcd5f5':'#ddd'};border-radius:7px;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:bold;">${r.reg_no}</div>
+        <div style="font-size:11px;color:#666;">${r.model||''}</div>
+      </div>
+      <button onclick="toggleAircraft(${r.id},${!r.active})"
+        style="font-size:11px;padding:4px 10px;border:none;border-radius:5px;cursor:pointer;
+               background:${r.active?'#e8f5e9':'#fff3e0'};color:${r.active?'#2e7d32':'#e65100'};">
+        ${r.active ? '✓ 사용중' : '비활성'}
+      </button>
+      <button onclick="deleteAircraft(${r.id},'${r.reg_no.replace(/'/g,"\\\'")}')"
+        style="font-size:11px;padding:4px 8px;border:none;border-radius:5px;cursor:pointer;background:#fce4e4;color:#c62828;">삭제</button>
+    </div>`).join("");
+}
+
+async function toggleAircraft(id, newActive){
+  await fetch(`${SUPABASE_URL}/rest/v1/drone_aircraft?id=eq.${id}`, {
+    method:"PATCH",
+    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+    body: JSON.stringify({ active: newActive })
+  });
+  await loadAircraftList();
+  renderAircraftList();
+}
+
+async function deleteAircraft(id, regNo){
+  if(!confirm(`"${regNo}" 기체를 삭제하시겠습니까?\n관련 비행기록은 유지됩니다.`)) return;
+  await fetch(`${SUPABASE_URL}/rest/v1/drone_aircraft?id=eq.${id}`, {
+    method:"DELETE",
+    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`}
+  });
+  await loadAircraftList();
+  renderAircraftList();
+}
+
+async function addAircraft(){
+  const regNo = document.getElementById("newRegNo").value.trim();
+  const model = document.getElementById("newModel").value.trim();
+  if(!regNo){ alert("등록번호를 입력하세요."); return; }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/drone_aircraft`, {
+    method:"POST",
+    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
+    body: JSON.stringify({ reg_no: regNo, model: model||null, active: true })
+  });
+  if(!res.ok){ alert("추가 실패: " + await res.text()); return; }
+  document.getElementById("newRegNo").value = "";
+  document.getElementById("newModel").value = "";
+  await loadAircraftList();
+  renderAircraftList();
+}
 document.getElementById("btnPrint2").addEventListener("click", ()=>window.print());
 document.getElementById("btnExcelOps").addEventListener("click", ()=>{
   const y = document.getElementById("ops-year").value;
@@ -2004,11 +2115,10 @@ document.getElementById("btnExcelOps").addEventListener("click", ()=>{
 });
 
 /* 초기화 */
-populateAircraftSelects();
 buildChecklistTable();
 initSyncedFields();
 ensurePilotName();
-loadFlightLog();
+loadAircraftList(); // 기체 목록 DB 로드 → 드롭다운 채우기 → loadFlightLog 호출
 setTimeout(resizeCanvas, 50);
 </script>
 
