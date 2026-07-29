@@ -659,14 +659,31 @@
 
     <div class="scroll-x">
       <table class="flightlog">
+        <colgroup>
+          <col style="width:3%">   <!-- No. -->
+          <col style="width:8%">   <!-- 일시 -->
+          <col style="width:20%">  <!-- 비행목적 -->
+          <col style="width:13%">  <!-- 비행장소 -->
+          <col style="width:5%">   <!-- 범위 -->
+          <col style="width:5%">   <!-- 시간 -->
+          <col style="width:4%">   <!-- 고도 -->
+          <col style="width:4%">   <!-- 풍속 -->
+          <col style="width:4%">   <!-- 시정 -->
+          <col style="width:3%">   <!-- 기타 -->
+          <col style="width:5%">   <!-- 촬영형태 -->
+          <col style="width:4%">   <!-- 승인>비행 -->
+          <col style="width:4%">   <!-- 승인>촬영 -->
+          <col style="width:6%">   <!-- 조종자 -->
+          <col style="width:10%">  <!-- 특이 비행 사항 -->
+          <col style="width:2%" class="no-print"> <!-- 버튼열 -->
+        </colgroup>
         <thead>
           <tr>
             <th rowspan="3">No.</th>
             <th rowspan="3">일시</th>
             <th colspan="8">무인비행장치 비행 내용</th>
             <th rowspan="3">촬영형태</th>
-            <th rowspan="3">비행승인</th>
-            <th rowspan="3">촬영승인</th>
+            <th colspan="2">승 인</th>
             <th rowspan="3">조종자</th>
             <th rowspan="3">특이 비행 사항</th>
             <th rowspan="3" class="no-print"></th>
@@ -674,12 +691,13 @@
           <tr>
             <th rowspan="2">비행목적</th>
             <th rowspan="2">비행장소</th>
-            <th rowspan="2">비행범위</th>
-            <th rowspan="2">비행시간</th>
-            <th rowspan="2">비행고도</th>
+            <th colspan="3">비 행</th>
             <th colspan="3">기 상</th>
+            <th rowspan="2">비행</th>
+            <th rowspan="2">촬영</th>
           </tr>
           <tr>
+            <th>범위</th><th>시간</th><th>고도</th>
             <th>풍속(m/s)</th><th>시정(km)</th><th>기타</th>
           </tr>
         </thead>
