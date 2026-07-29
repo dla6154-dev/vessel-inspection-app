@@ -446,6 +446,9 @@
     /* 비행기록부: 줄바꿈 없이 한 줄로 */
     table.flightlog { font-size: 8pt; width: 100%; table-layout: auto; }
     table.flightlog td, table.flightlog th { white-space: nowrap; }
+    /* 페이지 넘김 시 헤더 반복 + 행 중간 잘림 방지 */
+    table.flightlog thead { display: table-header-group; }
+    table.flightlog tbody tr { page-break-inside: avoid; }
     table.footer-table input,
     table.footer-table select {
       border:none !important; border-radius:0 !important;
