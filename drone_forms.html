@@ -1950,27 +1950,40 @@ function renderAircraftList(){
   const container = document.getElementById("aircraftList");
   if(!_aircraftRows.length){ container.innerHTML = '<div style="color:#999;font-size:13px;">등록된 기체가 없습니다.</div>'; return; }
   container.innerHTML = _aircraftRows.map(r => `
-    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:${r.active?'#f0f7ff':'#f5f5f5'};border:1px solid ${r.active?'#bcd5f5':'#ddd'};border-radius:7px;">
+    <div id="ac-row-${r.id}" style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:${r.active?'#f0f7ff':'#f5f5f5'};border:1px solid ${r.active?'#bcd5f5':'#ddd'};border-radius:7px;">
       <div style="flex:1;">
         <div style="font-size:13px;font-weight:bold;">${r.reg_no}</div>
         <div style="font-size:11px;color:#666;">${r.model||''}</div>
       </div>
-      <button onclick="toggleAircraft(${r.id},${!r.active})"
-        style="font-size:11px;padding:4px 10px;border:none;border-radius:5px;cursor:pointer;
-               background:${r.active?'#e8f5e9':'#fff3e0'};color:${r.active?'#2e7d32':'#e65100'};">
-        ${r.active ? '✓ 사용중' : '비활성'}
-      </button>
+      <button onclick="openEditAircraft(${r.id})"
+        style="font-size:11px;padding:4px 10px;border:none;border-radius:5px;cursor:pointer;background:#e8f0fe;color:#1a5fb4;">수정</button>
       <button onclick="deleteAircraft(${r.id},'${r.reg_no.replace(/'/g,"\\\'")}')"
         style="font-size:11px;padding:4px 8px;border:none;border-radius:5px;cursor:pointer;background:#fce4e4;color:#c62828;">삭제</button>
     </div>`).join("");
 }
 
-async function toggleAircraft(id, newActive){
-  await fetch(`${SUPABASE_URL}/rest/v1/drone_aircraft?id=eq.${id}`, {
+function openEditAircraft(id){
+  const r = _aircraftRows.find(x => x.id === id);
+  if(!r) return;
+  const row = document.getElementById(`ac-row-${id}`);
+  row.innerHTML = `
+    <input id="edit-reg-${id}" value="${r.reg_no}" style="flex:2;padding:5px 8px;border:1px solid #aac4f0;border-radius:5px;font-size:12px;font-family:inherit;">
+    <input id="edit-model-${id}" value="${r.model||''}" placeholder="기종" style="flex:1;padding:5px 8px;border:1px solid #aac4f0;border-radius:5px;font-size:12px;font-family:inherit;">
+    <button onclick="saveEditAircraft(${id})" style="font-size:11px;padding:4px 10px;border:none;border-radius:5px;cursor:pointer;background:#1a5fb4;color:#fff;">저장</button>
+    <button onclick="renderAircraftList()" style="font-size:11px;padding:4px 8px;border:none;border-radius:5px;cursor:pointer;background:#eee;color:#333;">취소</button>`;
+  row.style.flexWrap = "wrap";
+}
+
+async function saveEditAircraft(id){
+  const regNo = document.getElementById(`edit-reg-${id}`).value.trim();
+  const model = document.getElementById(`edit-model-${id}`).value.trim();
+  if(!regNo){ alert("등록번호를 입력하세요."); return; }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/drone_aircraft?id=eq.${id}`, {
     method:"PATCH",
     headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":"return=minimal"},
-    body: JSON.stringify({ active: newActive })
+    body: JSON.stringify({ reg_no: regNo, model: model||null })
   });
+  if(!res.ok){ alert("수정 실패: " + await res.text()); return; }
   await loadAircraftList();
   renderAircraftList();
 }
