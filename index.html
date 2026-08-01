@@ -344,7 +344,9 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:tr
     </div>
     <div class="modal-body">
       <ul class="ship-list" id="shipList"></ul>
+      <p class="hint-small" id="shipMonthNote"></p>
       <div class="add-row">
+        <label class="sch-carry-label"><input class="sch-carry-check" type="checkbox" id="newShipCarry">이월</label>
         <input class="add-inp" id="newName" placeholder="새 선박 이름..." onkeydown="if(event.key==='Enter')addShip()">
         <button class="btn-add" onclick="addShip()">+ 추가</button>
       </div>
@@ -647,6 +649,8 @@ const DEFAULT_INSPECTORS = ['차문태','김록주','정병희','임현우'];
 
 let curMonth = Math.min(new Date().getMonth() + 1, 12);
 let SHIPS = loadShips();
+let VIS_SHIP_MONTHS = loadVisShipMonths();
+let VIS_SHIP_ENTRIES = [];
 let VIS_INSPECTOR_MONTHS = loadVisInspectorMonths();
 let VIS_INSPECTOR_ENTRIES = [];
 let VIS_INSPECTORS = [];
@@ -658,6 +662,7 @@ let INSPECTORS = VIS_INSPECTORS;            /* 하위 호환 alias (점검횟수
 let modalShips = [];
 let modalIns = [];
 let modalSchIns = [];
+setActiveShips(curMonth);
 setActiveVisInspectors(curMonth);
 
 /* ── inspectors storage ── */
@@ -875,6 +880,7 @@ function applyVisInspectorConfig(monthMap, fallbackList, seedMonth){
 function buildVisConfigPayload(){
   return {
     ships:SHIPS,
+    visShipMonths:VIS_SHIP_MONTHS,
     inspectors:VIS_INSPECTORS,
     schInspectors:SCH_INSPECTOR_ENTRIES.map(function(item){ return item.name; }),
     visInspectorMonths:VIS_INSPECTOR_MONTHS
@@ -891,6 +897,106 @@ function optionsWithValue(base, value){
 }
 
 /* ── ships storage ── */
+function visShipYear(){
+  return visInspectorYear();
+}
+function visShipMonthKey(m){ return visShipYear() + '_' + pad2(m); }
+function normalizeVisShipEntry(entry, defaultCarry){
+  if(typeof entry === 'string'){
+    var nameFromString = entry.trim();
+    return nameFromString ? {name:nameFromString, carry:defaultCarry !== false} : null;
+  }
+  if(!entry || typeof entry !== 'object') return null;
+  var name = typeof entry.name === 'string' ? entry.name.trim() : '';
+  if(!name) return null;
+  return {
+    name:name,
+    carry:typeof entry.carry === 'boolean' ? entry.carry : defaultCarry !== false
+  };
+}
+function normalizeVisShipList(list, defaultCarry){
+  if(!Array.isArray(list)) return [];
+  var out = [];
+  var seen = {};
+  list.forEach(function(entry){
+    var item = normalizeVisShipEntry(entry, defaultCarry);
+    if(!item || seen[item.name]) return;
+    seen[item.name] = true;
+    out.push(item);
+  });
+  return out;
+}
+function cloneVisShipList(list){
+  return normalizeVisShipList(list).map(function(item){
+    return {name:item.name, carry:!!item.carry};
+  });
+}
+function normalizeVisShipMonthMap(map){
+  var out = {};
+  if(!map || typeof map !== 'object' || Array.isArray(map)) return out;
+  Object.keys(map).forEach(function(key){
+    out[key] = cloneVisShipList(map[key]);
+  });
+  return out;
+}
+function loadVisShipMonths(){
+  try{
+    var raw = localStorage.getItem(centerPrefix()+'vis_ship_months');
+    if(raw) return normalizeVisShipMonthMap(JSON.parse(raw));
+  } catch(e){}
+  return {};
+}
+function saveVisShipMonths(map){
+  localStorage.setItem(centerPrefix()+'vis_ship_months', JSON.stringify(normalizeVisShipMonthMap(map)));
+}
+function ensureShipsForMonth(m){
+  var key = visShipMonthKey(m);
+  if(Object.prototype.hasOwnProperty.call(VIS_SHIP_MONTHS, key)){
+    var existing = cloneVisShipList(VIS_SHIP_MONTHS[key]);
+    VIS_SHIP_MONTHS[key] = existing;
+    saveVisShipMonths(VIS_SHIP_MONTHS);
+    return cloneVisShipList(existing);
+  }
+  var seeded = [];
+  for(var prev=m-1; prev>=1; prev--){
+    var prevKey = visShipMonthKey(prev);
+    if(!Object.prototype.hasOwnProperty.call(VIS_SHIP_MONTHS, prevKey)) continue;
+    seeded = cloneVisShipList(VIS_SHIP_MONTHS[prevKey]).filter(function(item){ return item.carry; });
+    break;
+  }
+  if(!seeded.length){
+    seeded = normalizeVisShipList(loadShips(), true);
+  }
+  VIS_SHIP_MONTHS[key] = cloneVisShipList(seeded);
+  saveVisShipMonths(VIS_SHIP_MONTHS);
+  return cloneVisShipList(seeded);
+}
+function setActiveShips(m){
+  VIS_SHIP_ENTRIES = ensureShipsForMonth(m);
+  SHIPS = VIS_SHIP_ENTRIES.map(function(item){
+    return {name:item.name};
+  });
+  saveShips(SHIPS);
+  return SHIPS;
+}
+function saveVisShipsForMonth(m, list){
+  VIS_SHIP_MONTHS[visShipMonthKey(m)] = cloneVisShipList(list);
+  saveVisShipMonths(VIS_SHIP_MONTHS);
+  return setActiveShips(m);
+}
+function applyVisShipConfig(monthMap, fallbackList, seedMonth){
+  if(monthMap && typeof monthMap === 'object' && !Array.isArray(monthMap)){
+    VIS_SHIP_MONTHS = normalizeVisShipMonthMap(monthMap);
+  } else if(Array.isArray(fallbackList)){
+    VIS_SHIP_MONTHS = {};
+    VIS_SHIP_MONTHS[visShipMonthKey(seedMonth || curMonth)] = normalizeVisShipList(fallbackList, true);
+  } else {
+    VIS_SHIP_MONTHS = {};
+  }
+  saveVisShipMonths(VIS_SHIP_MONTHS);
+  setActiveShips(curMonth);
+}
+
 function loadShips(){
   try { var r=localStorage.getItem(centerPrefix()+'vis_ships'); if(r) return JSON.parse(r); } catch(e){}
   return DEFAULT_SHIPS.map(function(s){return {name:s.name};});
@@ -961,6 +1067,75 @@ function applyShips(){
 }
 
 /* ── 점검횟수 인원 모달 ── */
+function updateShipModalMeta(){
+  var title = document.querySelector('#shipModal .modal-title');
+  if(title) title.textContent = '선명 관리(출항전 점검횟수 ' + curMonth + '월)';
+  var note = document.getElementById('shipMonthNote');
+  if(note) note.textContent = curMonth + '월 선박을 관리합니다. 이월 체크 시 다음 달에도 자동 등록됩니다.';
+}
+function openModal(){
+  setActiveShips(curMonth);
+  modalShips = cloneVisShipList(VIS_SHIP_ENTRIES);
+  updateShipModalMeta();
+  document.getElementById('newName').value = '';
+  document.getElementById('newShipCarry').checked = false;
+  renderShipList();
+  document.getElementById('shipModal').classList.add('open');
+}
+function renderShipList(){
+  var ul = document.getElementById('shipList');
+  ul.innerHTML = '';
+  modalShips.forEach(function(item, idx){
+    var li = document.createElement('li');
+    li.className = 'ship-item';
+    li.draggable = true;
+    li.dataset.idx = idx;
+    li.innerHTML =
+      '<span class="ship-drag" title="드래그로 순서 변경">&#8942;</span>' +
+      '<input class="ship-name-inp" value="' + escHtml(item.name) + '" placeholder="선박명" data-idx="' + idx + '">' +
+      '<label class="sch-carry-label"><input class="sch-carry-check" type="checkbox" data-carry="' + idx + '"' + (item.carry ? ' checked' : '') + '>이월</label>' +
+      '<button class="ship-del" data-del="' + idx + '" title="삭제">&#10005;</button>';
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll('.ship-name-inp').forEach(function(inp){
+    inp.addEventListener('input', function(){ modalShips[+this.dataset.idx].name = this.value; });
+  });
+  ul.querySelectorAll('[data-carry]').forEach(function(chk){
+    chk.addEventListener('change', function(){ modalShips[+this.dataset.carry].carry = !!this.checked; });
+  });
+  ul.querySelectorAll('[data-del]').forEach(function(btn){
+    btn.addEventListener('click', function(){ deleteShip(+this.dataset.del); });
+  });
+  initDrag(ul);
+}
+function addShip(){
+  var name = document.getElementById('newName').value.trim();
+  var carry = !!document.getElementById('newShipCarry').checked;
+  if(!name){ document.getElementById('newName').focus(); return; }
+  if(modalShips.some(function(item){ return item.name === name; })){ showToast('이미 등록된 선박입니다'); return; }
+  modalShips.push({name:name, carry:carry});
+  document.getElementById('newName').value = '';
+  document.getElementById('newShipCarry').checked = false;
+  renderShipList();
+}
+function applyShips(){
+  var nextList = modalShips.map(function(item){
+    return {
+      name:item && typeof item.name === 'string' ? item.name.trim() : '',
+      carry:!!(item && item.carry)
+    };
+  });
+  var names = nextList.map(function(item){ return item.name; });
+  if(names.some(function(n){return !n;})){ showToast('선박 이름을 모두 입력해주세요'); return; }
+  var uniq = new Set(names);
+  if(uniq.size !== names.length){ showToast('중복된 선박 이름이 있습니다'); return; }
+  saveVisShipsForMonth(curMonth, nextList);
+  cloudUpsert(centerPrefix()+'vis_config', buildVisConfigPayload());
+  closeModal();
+  renderTable(curMonth);
+  showToast('선박 목록을 업데이트했습니다');
+}
+
 function updateInsModalMeta(){
   var title = document.querySelector('#insModal .modal-title');
   if(title) title.textContent = '인원 관리 (출항전 점검횟수 ' + curMonth + '월)';
@@ -1281,7 +1456,10 @@ function rebuildThead(){
 
 /* ── render table ── */
 function renderTable(m){
+  setActiveShips(m);
   setActiveVisInspectors(m);
+  rebuildColgroup();
+  rebuildThead();
   var data=loadData(m);
   var days=DAYS_IN[m]||31;
   var sn=shipNames();
@@ -1531,6 +1709,7 @@ function exportJSON(){
   var payload={
     month:curMonth,
     ships:SHIPS,
+    visShipMonths:VIS_SHIP_MONTHS,
     inspectors:VIS_INSPECTORS,
     schInspectors:SCH_INSPECTOR_ENTRIES.map(function(item){ return item.name; }),
     visInspectorMonths:VIS_INSPECTOR_MONTHS,
@@ -1551,7 +1730,9 @@ function loadFromFile(e){
     try{
       var obj=JSON.parse(ev.target.result);
       var m=obj.month||curMonth;
-      if(obj.ships){SHIPS=obj.ships;saveShips(SHIPS);rebuildColgroup();rebuildThead();}
+      if(obj.visShipMonths || obj.ships){
+        applyVisShipConfig(obj.visShipMonths, obj.ships, m);
+      }
       if(obj.visInspectorMonths || obj.inspectors){
         applyVisInspectorConfig(obj.visInspectorMonths, obj.inspectors, m);
       }
@@ -1849,7 +2030,9 @@ async function initSync(){
   var cfgRow = results[0], dataRow = results[1];
   if(cfgRow && cfgRow.payload){
     var cfg = cfgRow.payload;
-    if(cfg.ships){ SHIPS=cfg.ships; saveShips(SHIPS); rebuildColgroup(); rebuildThead(); }
+    if(cfg.visShipMonths || cfg.ships){
+      applyVisShipConfig(cfg.visShipMonths, cfg.ships, curMonth);
+    }
     if(cfg.visInspectorMonths || cfg.inspectors){
       applyVisInspectorConfig(cfg.visInspectorMonths, cfg.inspectors, curMonth);
     }
@@ -1857,6 +2040,7 @@ async function initSync(){
       saveSchInspectors(cfg.schInspectors);
     }
     setActiveSchInspectors(schMonth);
+    renderTable(curMonth);
   }
   if(dataRow){
     localStorage.setItem(stKey(curMonth), JSON.stringify(dataRow.payload));
@@ -3125,7 +3309,9 @@ function switchCenter(c){
 
   /* 센터별 선명·인원 재로드 */
   SHIPS = loadShips();
+  VIS_SHIP_MONTHS = loadVisShipMonths();
   VIS_INSPECTOR_MONTHS = loadVisInspectorMonths();
+  setActiveShips(curMonth);
   setActiveVisInspectors(curMonth);
   setActiveSchInspectors(schMonth);
   INSPECTORS = VIS_INSPECTORS;
