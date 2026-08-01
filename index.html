@@ -118,6 +118,13 @@ select.ins-sel:hover,select.ins-sel:focus{border-color:var(--border2);background
 
 input.note-in{width:100%;height:28px;padding:0 6px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--text2);font-size:11px;transition:all .12s}
 input.note-in:hover,input.note-in:focus{border-color:var(--border2);background:rgba(255,255,255,.8);color:var(--text);outline:none}
+.note-wrap{position:relative;display:flex;align-items:center;gap:3px;}
+.note-wrap input.note-in{flex:1;min-width:0;}
+.note-icon{flex-shrink:0;width:15px;height:15px;border-radius:50%;background:#2563eb;color:#fff;font-size:9px;font-weight:700;display:none;align-items:center;justify-content:center;cursor:default;position:relative;user-select:none;}
+.note-icon.active{display:flex;}
+.note-tip{display:none;position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);background:#1c2f4a;color:#eef4ff;font-size:11px;line-height:1.55;padding:7px 11px;border-radius:7px;white-space:normal;width:220px;min-width:120px;text-align:left;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:200;pointer-events:none;word-break:keep-all;}
+.note-tip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:#1c2f4a;}
+.note-icon:hover .note-tip,.note-icon:focus .note-tip{display:block;}
 
 .chip-total{display:inline-block;background:var(--accent);color:#fff;border-radius:100px;padding:1px 9px;font-family:var(--mono);font-size:12px;font-weight:500;min-width:28px}
 .chip-total.zero{background:var(--border2);color:var(--text3)}
@@ -1313,7 +1320,7 @@ function renderTable(m){
       choOpts.forEach(function(i){ html+='<option'+(r.chulcha===i?' selected':'')+'>'+escHtml(i)+'</option>'; });
       html+='</select></td>';
 
-      html+='<td><input class="note-in" type="text" id="'+side+'_note_'+d+'" value="'+escHtml(r.note||'')+'" placeholder="비고..."></td>';
+      html+='<td><div class="note-wrap"><input class="note-in" type="text" id="'+side+'_note_'+d+'" value="'+escHtml(r.note||'')+'" placeholder="비고..."><span class="note-icon" tabindex="0">i<span class="note-tip"></span></span></div></td>';
 
       tr.innerHTML=html;
       tbody.appendChild(tr);
@@ -1390,6 +1397,27 @@ function renderTable(m){
   };
 
   renderSummary(m,data);
+  initNoteTips();
+}
+
+function initNoteTips(){
+  document.querySelectorAll('.note-wrap').forEach(function(wrap){
+    var inp = wrap.querySelector('.note-in');
+    var icon = wrap.querySelector('.note-icon');
+    var tip = wrap.querySelector('.note-tip');
+    if(!inp||!icon||!tip) return;
+    function update(){
+      var val = inp.value.trim();
+      if(val.length > 12){
+        tip.textContent = val;
+        icon.classList.add('active');
+      } else {
+        icon.classList.remove('active');
+      }
+    }
+    update();
+    inp.addEventListener('input', update);
+  });
 }
 
 function updateTotals(day,side){
@@ -2515,7 +2543,7 @@ function renderSchedule(m){
     var cellsHtml='';
     slots.forEach(function(s){ cellsHtml+=schCellHtml(s.key,d,row[s.key],s.leave); });
     cellsHtml+=schHuumuCellHtml(d,row);
-    cellsHtml+='<td><input class="note-in" type="text" id="sch_note_'+d+'" value="'+escHtml(row.note||'')+'"></td>';
+    cellsHtml+='<td><div class="note-wrap"><input class="note-in" type="text" id="sch_note_'+d+'" value="'+escHtml(row.note||'')+'"><span class="note-icon" tabindex="0">i<span class="note-tip"></span></span></div></td>';
     cellsHtml+='<td class="sch-check-cell" id="sch_check_'+d+'"><div class="sch-check-mark '+rowCheck.className+'" title="'+escHtml(rowCheck.title)+'">'+rowCheck.text+'</div></td>';
 
     tr.innerHTML=
@@ -2527,6 +2555,7 @@ function renderSchedule(m){
   renderSchLeaveSurvey(m, data, SCH_LEAVE_SURVEY);
   renderSchLeaveStats(m, data, SCH_LEAVE_SURVEY);
   applySchFocusHighlight();
+  initNoteTips();
 }
 
 function toggleLeave(slot,d){
