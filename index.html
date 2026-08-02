@@ -3229,10 +3229,13 @@ function drawCalendarBlock(ws, m, data, slots, startRow){
     var bgArgb=(isWE||isHd)?'FFFFFDE7':'FFFFFFFF';
     var dateColor=(isWE||isHd)?'FFCC0000':'FF222222';
 
+    var hideLeaveOnCalendar = (m === 8);
     var activeSlots=[];
     slots.forEach(function(s){
       var sv=r[s.key]||{worker:''};
-      if(sv.worker) activeSlots.push({s:s,worker:sv.worker});
+      if(!sv.worker) return;
+      if(hideLeaveOnCalendar && s.leave && sv.leave) return;
+      activeSlots.push({s:s,worker:sv.worker});
     });
 
     var exRow=ws.getRow(rowBase+wk);
