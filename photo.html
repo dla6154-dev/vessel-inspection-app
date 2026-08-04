@@ -270,6 +270,41 @@ async function handleFile(input) {
   }
 }
 
+async function autoDeleteOldPhotos() {
+  // 2개월 이전 날짜 계산
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 2);
+  const cutoffStr = cutoff.toISOString().slice(0, 10); // YYYY-MM-DD
+
+  // 2개월 이전이고 photo_path가 있는 레코드 조회
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/${T_FLIGHTLOG}?log_datetime=lt.${cutoffStr}&photo_path=not.is.null&select=id,photo_path`,
+    { headers: hdrs() }
+  );
+  if (!res.ok) return;
+  const old = await res.json();
+  if (!old.length) return;
+
+  // Storage 일괄 삭제
+  const paths = old.map(r => r.photo_path);
+  await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}`, {
+    method: "DELETE",
+    headers: { ...hdrs(), "Content-Type": "application/json" },
+    body: JSON.stringify({ prefixes: paths })
+  });
+
+  // DB photo_path / photo_display_name 초기화
+  for (const r of old) {
+    await fetch(`${SUPABASE_URL}/rest/v1/${T_FLIGHTLOG}?id=eq.${r.id}`, {
+      method: "PATCH",
+      headers: { ...hdrs(), "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ photo_path: null, photo_display_name: null })
+    });
+  }
+
+  console.log(`[자동삭제] 2개월 이전 사진 ${old.length}건 삭제 완료`);
+}
+
 async function deleteFile(id, storagePath) {
   if (!confirm("이 사진을 삭제하시겠습니까?")) return;
 
@@ -355,6 +390,9 @@ async function downloadZip() {
 const now = new Date();
 document.getElementById("sel-year").value = String(now.getFullYear());
 document.getElementById("sel-month").value = String(now.getMonth() + 1);
+
+// 페이지 로드 시 2개월 이전 사진 자동 삭제
+autoDeleteOldPhotos();
 </script>
 </body>
 </html>
