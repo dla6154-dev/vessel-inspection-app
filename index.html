@@ -648,6 +648,7 @@ const DEFAULT_SHIPS = [
 const DEFAULT_INSPECTORS = ['차문태','김록주','정병희','임현우'];
 
 let curMonth = Math.min(new Date().getMonth() + 1, 12);
+let _renderSeq = 0; /* renderTable 호출 횟수 추적 — changeMonth 레이스 방지 */
 let SHIPS = loadShips();
 let VIS_SHIP_MONTHS = loadVisShipMonths();
 let VIS_SHIP_ENTRIES = [];
@@ -1130,6 +1131,20 @@ function applyShips(){
   var uniq = new Set(names);
   if(uniq.size !== names.length){ showToast('중복된 선박 이름이 있습니다'); return; }
   saveVisShipsForMonth(curMonth, nextList);
+  /* 이월 변경 사항을 이미 초기화된 미래 달에 전파 */
+  var carryNames = nextList.filter(function(i){ return i.carry; }).map(function(i){ return i.name; });
+  for(var fm = curMonth + 1; fm <= 12; fm++){
+    var fk = visShipMonthKey(fm);
+    if(!Object.prototype.hasOwnProperty.call(VIS_SHIP_MONTHS, fk)) continue;
+    var fList = cloneVisShipList(VIS_SHIP_MONTHS[fk]);
+    var fNames = fList.map(function(i){ return i.name; });
+    var changed = false;
+    carryNames.forEach(function(cn){
+      if(fNames.indexOf(cn) === -1){ fList.push({name:cn, carry:true}); changed = true; }
+    });
+    if(changed){ VIS_SHIP_MONTHS[fk] = fList; }
+  }
+  saveVisShipMonths(VIS_SHIP_MONTHS);
   cloudUpsert(centerPrefix()+'vis_config', buildVisConfigPayload());
   closeModal();
   renderTable(curMonth);
@@ -1363,11 +1378,13 @@ async function changeMonth(m){
   document.getElementById('pageMeta').textContent = '2026년 ' + m + '월 · ' + centerLabel() + '사무소';
   setActiveVisInspectors(m);
   renderTable(m);
+  var seqAtFetch = _renderSeq;
   setSyncStatus('syncing');
   var row = await cloudFetch(stKey(m));
   if(row){
     localStorage.setItem(stKey(m), JSON.stringify(row.payload));
-    renderTable(m);
+    /* fetch 대기 중 사용자가 선박 수정 등으로 재렌더했으면 덮어쓰지 않음 */
+    if(_renderSeq === seqAtFetch) renderTable(m);
     setSyncStatus('ok', row.updated_at);
   } else {
     setSyncStatus('offline');
@@ -1456,6 +1473,7 @@ function rebuildThead(){
 
 /* ── render table ── */
 function renderTable(m){
+  _renderSeq++;
   setActiveShips(m);
   setActiveVisInspectors(m);
   rebuildColgroup();
