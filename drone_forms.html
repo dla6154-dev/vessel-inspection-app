@@ -573,10 +573,10 @@
       <tr>
         <td class="label">풍속 / 온도</td>
         <td>
-          <input type="text" id="f_wind" data-sync="wind_speed" style="width:42%;display:inline-block;" placeholder="풍속(m/s)">
+          <input type="text" id="f_wind" data-sync="wind_speed" style="width:45%;display:inline-block;" placeholder="풍속(m/s)">
           /
-          <input type="text" id="f_temp" data-sync="temperature" style="width:42%;display:inline-block;" placeholder="온도(℃)">
-          <span id="wt-display" style="display:none;margin-left:6px;font-size:12px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;white-space:nowrap;"></span>
+          <input type="text" id="f_temp" data-sync="temperature" style="width:45%;display:inline-block;" placeholder="온도(℃)">
+          <div id="wt-display" style="display:none;margin-top:4px;font-size:12px;font-weight:700;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;width:fit-content;"></div>
         </td>
         <td class="label">비행시작/비행종료</td>
         <td>
@@ -1587,7 +1587,7 @@ function updateWtDisplay(){
     if(wind) parts.push(wind.includes("m/s") ? wind : wind + " m/s");
     if(temp) parts.push(temp.includes("℃") ? temp : temp + "℃");
     badge.textContent = parts.join("  ");
-    badge.style.display = "inline";
+    badge.style.display = "block";
   } else {
     badge.style.display = "none";
   }
