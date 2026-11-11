@@ -70,7 +70,7 @@ header.top .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 
 /* panels & tables */
 .grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
-@media (max-width:980px){.grid2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:1280px){.grid2{grid-template-columns:minmax(0,1fr)}}
 .stack{display:flex;flex-direction:column;gap:16px;min-width:0}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
@@ -79,11 +79,16 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
 th{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.03em;background:var(--sunken)}
 td.c,th.c{text-align:center}
-td.note-cell{white-space:normal;min-width:170px;font-size:12px;color:var(--muted)}
+td.note-cell{white-space:normal;width:100%;min-width:70px;max-width:0;font-size:12px;color:var(--muted)}
+.note-wrap{display:flex;align-items:center;gap:4px;min-width:0}
+.note-icon{flex-shrink:0;width:16px;height:16px;border-radius:50%;background:var(--accent);color:var(--accent-fg);font:700 10px/16px var(--font-body);text-align:center;cursor:default;user-select:none;display:none}
+.note-icon.active{display:inline-block}
+.note-tip{position:fixed;z-index:50;max-width:240px;padding:7px 11px;border-radius:7px;background:#1c2f4a;color:#eef4ff;font-size:12px;line-height:1.55;white-space:normal;word-break:keep-all;box-shadow:0 4px 16px rgba(0,0,0,.25);pointer-events:none}
+.note-tip::after{content:"";position:absolute;top:100%;left:var(--ax,50%);transform:translateX(-50%);border:6px solid transparent;border-top-color:#1c2f4a}
 td.editable{cursor:pointer;user-select:none;border-radius:4px}
 td.editable:hover{background:var(--accent-soft)}
 td.editable:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-input.noteinput{width:100%;min-width:160px;font-size:12px;padding:4px 7px;background:transparent;border-color:transparent;border-bottom-color:var(--line);border-radius:5px}
+input.noteinput{flex:1;width:100%;min-width:0;text-overflow:ellipsis;font-size:12px;padding:4px 7px;background:transparent;border-color:transparent;border-bottom-color:var(--line);border-radius:5px}
 input.noteinput:hover{border-color:var(--line)}
 input.noteinput:focus{background:var(--bg);border-color:var(--accent)}
 td.sitecell{font-weight:700;color:var(--sc);border-right:1px solid var(--line);background:color-mix(in srgb,var(--sc) 6%,transparent)}
@@ -484,7 +489,7 @@ function render(){
   /* 비고: 칸에 바로 적고, 다른 곳을 누르거나 Enter를 치면 저장 */
   function noteCell(p,where){
     if(!p)return '<td class="note-cell"></td>';
-    return '<td class="note-cell"><input class="noteinput" id="note-'+where+'-'+esc(p.id)+'" data-note="'+esc(p.id)+'" value="'+esc(p.note)+'" maxlength="60" aria-label="'+esc(p.name)+' 비고"'+dis+'></td>';
+    return '<td class="note-cell"><div class="note-wrap"><input class="noteinput" id="note-'+where+'-'+esc(p.id)+'" data-note="'+esc(p.id)+'" value="'+esc(p.note)+'" maxlength="60" aria-label="'+esc(p.name)+' 비고"'+dis+'><span class="note-icon" tabindex="0" aria-label="비고 전체 보기">i</span></div></td>';
   }
   function destCell(p,nx){
     if(ui.editingDest===p.id){
@@ -574,7 +579,34 @@ function render(){
     '<div class="grid2"><div class="stack">'+centerTable('senior',M.POOL_LONG.senior)+centerTable('general',M.POOL_LONG.general)+'</div>'+upHtml+'</div></div>';
   manage.hidden=false;
   renderManage(viewAt(TODAY));
+  requestAnimationFrame(updateNoteIcons);
 }
+
+/* 비고가 칸보다 길면 옆에 i 표시, 올리면 전체 내용 */
+function updateNoteIcon(inp){
+  const ic=inp.parentNode&&inp.parentNode.querySelector('.note-icon');if(!ic)return;
+  const on=!!inp.value.trim()&&inp.scrollWidth>inp.clientWidth+1;
+  ic.classList.toggle('active',on);
+}
+function updateNoteIcons(){for(const inp of document.querySelectorAll('#main input.noteinput'))updateNoteIcon(inp);}
+let noteTip=null;
+function showNoteTip(ic){
+  const inp=ic.parentNode.querySelector('input.noteinput');if(!inp)return;
+  if(!noteTip){noteTip=document.createElement('div');noteTip.className='note-tip';document.body.appendChild(noteTip);}
+  noteTip.textContent=inp.value;noteTip.hidden=false;
+  const r=ic.getBoundingClientRect(),w=noteTip.offsetWidth;
+  let left=r.left+r.width/2-w/2;left=Math.max(4,Math.min(left,window.innerWidth-w-4));
+  noteTip.style.left=left+'px';noteTip.style.setProperty('--ax',(r.left+r.width/2-left)+'px');
+  noteTip.style.top=Math.max(4,r.top-noteTip.offsetHeight-10)+'px';
+}
+function hideNoteTip(){if(noteTip)noteTip.hidden=true;}
+document.addEventListener('mouseover',e=>{const ic=e.target.closest&&e.target.closest('.note-icon');if(ic)showNoteTip(ic);});
+document.addEventListener('mouseout',e=>{if(e.target.closest&&e.target.closest('.note-icon'))hideNoteTip();});
+document.addEventListener('focusin',e=>{if(e.target.classList&&e.target.classList.contains('note-icon'))showNoteTip(e.target);});
+document.addEventListener('focusout',e=>{if(e.target.classList&&e.target.classList.contains('note-icon'))hideNoteTip();});
+document.addEventListener('input',e=>{if(e.target.matches&&e.target.matches('input.noteinput'))updateNoteIcon(e.target);});
+window.addEventListener('scroll',hideNoteTip,true);
+window.addEventListener('resize',()=>{hideNoteTip();updateNoteIcons();});
 
 function opt(val,label,sel){return '<option value="'+esc(val)+'"'+(val===sel?' selected':'')+'>'+esc(label)+'</option>';}
 function titleOpts(sel){return opt('','직책 미입력',sel)+M.TITLES.map(t=>opt(t,t,sel)).join('');}
