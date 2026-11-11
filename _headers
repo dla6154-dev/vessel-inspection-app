@@ -8,3 +8,7 @@
 /drone_operations.html
   X-Frame-Options: SAMEORIGIN
   Cache-Control: no-cache, must-revalidate
+
+/dispatch_rotation.html
+  X-Frame-Options: SAMEORIGIN
+  Cache-Control: no-cache, must-revalidate

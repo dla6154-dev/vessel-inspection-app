@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>무인비행장치 전자 서식</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
   :root{
     --line:#000;
@@ -384,11 +385,29 @@
   .home-card-title{font-size:15px;font-weight:bold;color:#111;}
   .home-card-sub{font-size:12px;color:#777;margin-top:2px;}
   .home-card .arrow{margin-left:auto;font-size:22px;color:var(--accent);}
+  .home-action-row{
+    max-width:900px;
+    margin:0 auto 14px;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px;
+  }
+  .home-action-row .home-card{max-width:none;margin:0;min-width:0;}
+  .photo-card{text-decoration:none;color:inherit;}
+  .photo-card .photo-qr{
+    width:74px;height:74px;margin-left:auto;padding:4px;
+    background:#fff;border:1px solid #ddd;border-radius:4px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .photo-card .photo-qr img,.photo-card .photo-qr canvas{display:block;max-width:64px;max-height:64px;}
 
   @media screen and (max-width: 600px) {
     body { padding: 10px 8px 60px; font-size: 14px; }
     .topbar { flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; }
+    .home-action-row { grid-template-columns:1fr; gap:10px; }
     .home-card { padding: 14px; }
+    .photo-card .photo-qr { width:62px;height:62px; }
+    .photo-card .photo-qr img,.photo-card .photo-qr canvas { max-width:52px;max-height:52px; }
     .home-card-title { font-size: 15px; }
     .tabs button { font-size: 13px; padding: 10px 6px; }
     .sheet { padding: 14px 12px 20px; }
@@ -499,13 +518,23 @@
   <div style="font-size:12px;color:#777;">등록번호: <b id="whoamiReg">운항-25-04(AIR3S/DJI)</b></div>
 </div>
 
-<div class="home-card" id="btnOpenMaster">
-  <span class="icon">✈</span>
-  <div>
-    <div class="home-card-title">비행 기록하기</div>
-    <div class="home-card-sub">점검 체크리스트 + 비행 기록부에 필요한 항목을 한 번에 입력합니다</div>
+<div class="home-action-row">
+  <div class="home-card" id="btnOpenMaster">
+    <span class="icon">✈</span>
+    <div>
+      <div class="home-card-title">비행 기록하기</div>
+      <div class="home-card-sub">점검 체크리스트 + 비행 기록부에 필요한 항목을 한 번에 입력합니다</div>
+    </div>
+    <span class="arrow">›</span>
   </div>
-  <span class="arrow">›</span>
+  <a class="home-card photo-card" id="btnOpenPhoto" href="photo.html">
+    <span class="icon">📷</span>
+    <div>
+      <div class="home-card-title">드론 사진 등록</div>
+      <div class="home-card-sub">QR 스캔 또는 클릭하여 사진을 등록합니다</div>
+    </div>
+    <span class="photo-qr" id="photoQrCode" aria-label="드론 사진 등록 QR 코드"></span>
+  </a>
 </div>
 
 <!-- 운용 실적 월 선택 카드 -->
@@ -2214,6 +2243,13 @@ ensurePilotName();
 loadAircraftList(); // 기체 목록 DB 로드 → 드롭다운 채우기 → loadFlightLog 호출
 setTimeout(resizeCanvas, 50);
 setTimeout(applyWindTempUnits, 100);
+const photoQrTarget = new URL("photo.html", window.location.href).href;
+new QRCode(document.getElementById("photoQrCode"), {
+  text: photoQrTarget,
+  width: 64,
+  height: 64,
+  correctLevel: QRCode.CorrectLevel.M
+});
 </script>
 
 </body></html>

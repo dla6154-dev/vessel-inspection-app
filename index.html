@@ -105,6 +105,13 @@ tr.row-a td{background:#f0f5ff}
 tr.row-b td{background:#fdf0f7}
 tr.row-a:hover td{background:#e4edff}
 tr.row-b:hover td{background:#fce5f2}
+tr.row-incomplete td{background:var(--red-light)!important;border-bottom-color:#edbbb7}
+tr.row-incomplete td:first-child{box-shadow:inset 4px 0 0 var(--red)}
+tr.row-incomplete .note-in{background:#fff7f6;color:var(--red)}
+
+.incomplete-alert{display:none;align-items:center;gap:5px;height:27px;padding:0 10px;border:1px solid #e5a8a2;border-radius:999px;background:var(--red-light);color:var(--red);font-family:var(--sans);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
+.incomplete-alert.show{display:inline-flex}
+.incomplete-alert:hover{background:#f9dfdc;border-color:var(--red)}
 
 .day-num{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text2)}
 
@@ -272,6 +279,9 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:#f
 .sch-leave-btn.active{background:var(--amber-light);border-color:transparent;color:var(--amber);font-style:italic;font-weight:700}
 td.cell-leave{background:#fff6df}
 td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:transparent;border-color:transparent}
+.sch-leave-btn.trip,.sch-leave-btn.trip:hover{background:#dbeafe;border-color:transparent;color:#1d4ed8;font-weight:700}
+td.cell-trip{background:#eff6ff}
+td.cell-trip .sch-worker-sel{color:#1d4ed8;font-weight:700;background:transparent;border-color:transparent}
 .sch-tbl td.sch-off-slot{background:#faf8f1}
 .sch-tbl td.sch-off-slot .sch-worker-sel{background:transparent}
 .sch-tbl td.sch-focus-cell{background:#e9f2ff!important;box-shadow:inset 0 0 0 2px #5d8fc9}
@@ -443,6 +453,10 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:tr
       <span class="sidenav-icon">🚁</span>
       <span>드론 전자서식</span>
     </button>
+    <button class="sidenav-item" id="nav-dispatch" onclick="showPage('dispatch')">
+      <span class="sidenav-icon">&#128260;</span>
+      <span>파견지 순번</span>
+    </button>
     <button class="sidenav-item" id="nav-schedule" onclick="showPage('schedule')">
       <span class="sidenav-icon">&#128203;</span>
       <span>근무표 작성</span>
@@ -489,6 +503,7 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:tr
     <span><span class="ldot dot-a"></span>근무자 A 행</span>
     <span><span class="ldot dot-b"></span>근무자 B 행</span>
     <span style="margin-left:auto;display:flex;gap:16px;align-items:center">
+      <button type="button" class="incomplete-alert" id="incompleteAlert" onclick="focusNextIncomplete()"></button>
       <span id="syncStatus" style="font-size:11px"></span>
       <span style="font-size:11px;color:var(--text3)" id="savedAt"></span>
     </span>
@@ -512,6 +527,10 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:tr
   <iframe id="droneFrame" src="drone_forms.html" style="width:100%;height:100%;border:none;display:block;"></iframe>
 </div>
 
+<div id="page-dispatch" class="page" style="padding:0;height:calc(100vh - 48px);">
+  <iframe id="dispatchFrame" title="파견지 순번" style="width:100%;height:100%;border:none;display:block;"></iframe>
+</div>
+
 <div id="page-schedule" class="page">
 <div class="shell">
   <div class="sch-section">
@@ -529,6 +548,7 @@ td.cell-leave .sch-worker-sel{font-style:italic;color:var(--amber);background:tr
       <button class="btn btn-surface" onclick="openSchLeaveSurveyModal()" title="휴무표 조사 열기"><span class="btn-icon">&#128197;</span><span>휴무표 조사</span></button>
       <button class="btn btn-save" onclick="saveSchedule()">&#128190; 저장</button>
       <button class="btn btn-dl" onclick="downloadScheduleExcel()">&#128229; 엑셀 다운로드</button>
+      <button class="btn btn-dl" id="schImageButton" onclick="downloadScheduleImage()">&#128444; 그림추출</button>
     </div>
     <div class="sch-survey-launch">
       <div class="sch-panel-note">달력 아이콘을 누르면 휴무표 조사 창이 열리고, 입력한 희망 휴무는 근무표 휴무 칸에 자동 반영됩니다.</div>
@@ -1433,6 +1453,7 @@ function collectData(m){
 
 async function saveData(){
   var data=collectData(curMonth);
+  var incompleteCount=updateInspectionAlerts();
   localStorage.setItem(stKey(curMonth),JSON.stringify(data));
   var ts=new Date().toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   document.getElementById('savedAt').textContent='마지막 저장: '+ts;
@@ -1442,16 +1463,57 @@ async function saveData(){
   await cloudUpsert(centerPrefix()+'vis_config', buildVisConfigPayload());
   if(dataOk){
     setSyncStatus('ok', now);
-    showToast('저장 및 동기화 완료');
+    showToast(incompleteCount ? '저장 및 동기화 완료 · 미확인 '+incompleteCount+'건' : '저장 및 동기화 완료');
   } else {
     setSyncStatus('error');
-    showToast('저장 완료 (동기화 실패 — 인터넷 확인)');
+    showToast(incompleteCount ? '저장 완료 · 미확인 '+incompleteCount+'건 (동기화 실패)' : '저장 완료 (동기화 실패 — 인터넷 확인)');
   }
 }
 
 /* ── calc ── */
 function calcTotal(ships){
   return shipNames().reduce(function(s,k){return s+(parseInt(ships[k])||0);},0);
+}
+
+/* 선박 횟수 없이 담당자만 지정된 행은 사유 비고를 반드시 확인할 수 있게 표시한다. */
+var incompleteAlertIndex=-1;
+function updateInspectionAlerts(){
+  var rows=Array.prototype.slice.call(document.querySelectorAll('#tbody tr[data-day][data-side]'));
+  var incompleteRows=[];
+  rows.forEach(function(tr){
+    var day=tr.dataset.day, side=tr.dataset.side;
+    var total=shipNames().reduce(function(sum, ship){
+      var input=document.getElementById(side+'_'+day+'_'+sid(ship));
+      return sum+(parseInt((input||{}).value)||0);
+    },0);
+    var inspector=(document.getElementById(side+'_ins_'+day)||{}).value||'';
+    var chulcha=(document.getElementById(side+'_cho_'+day)||{}).value||'';
+    var noteInput=document.getElementById(side+'_note_'+day);
+    var note=noteInput ? noteInput.value.trim() : '';
+    var incomplete=!total && !!(inspector.trim()||chulcha.trim()) && !note;
+    tr.classList.toggle('row-incomplete',incomplete);
+    if(noteInput) noteInput.placeholder=incomplete ? '횟수 미입력 사유를 적어주세요' : '비고...';
+    if(incomplete) incompleteRows.push(tr);
+  });
+
+  var alert=document.getElementById('incompleteAlert');
+  if(alert){
+    alert.classList.toggle('show',!!incompleteRows.length);
+    alert.textContent='⚠ 미확인 '+incompleteRows.length+'건';
+    alert.title='선박 횟수 없이 담당자만 입력된 행입니다. 눌러서 확인하세요.';
+  }
+  if(incompleteAlertIndex>=incompleteRows.length) incompleteAlertIndex=-1;
+  return incompleteRows.length;
+}
+
+function focusNextIncomplete(){
+  var rows=Array.prototype.slice.call(document.querySelectorAll('#tbody tr.row-incomplete'));
+  if(!rows.length) return;
+  incompleteAlertIndex=(incompleteAlertIndex+1)%rows.length;
+  var row=rows[incompleteAlertIndex];
+  row.scrollIntoView({behavior:'smooth',block:'center'});
+  var note=row.querySelector('.note-in');
+  if(note) setTimeout(function(){ note.focus(); },300);
 }
 
 /* ── colgroup / thead ── */
@@ -1491,6 +1553,8 @@ function renderTable(m){
       var r=data[d][side];
       var tr=document.createElement('tr');
       tr.className='row-'+side;
+      tr.dataset.day=d;
+      tr.dataset.side=side;
 
       var html='<td class="day-num">'+(side==='a'?d:'')+'</td>';
 
@@ -1513,7 +1577,7 @@ function renderTable(m){
       html+='</select></td>';
 
       var choOpts = optionsWithValue(opts, r.chulcha||'');
-      html+='<td><select class="ins-sel" id="'+side+'_cho_'+d+'">';
+      html+='<td><select class="ins-sel" id="'+side+'_cho_'+d+'" data-day="'+d+'" data-side="'+side+'">';
       choOpts.forEach(function(i){ html+='<option'+(r.chulcha===i?' selected':'')+'>'+escHtml(i)+'</option>'; });
       html+='</select></td>';
 
@@ -1533,6 +1597,7 @@ function renderTable(m){
       if(!el.dataset.isbog) updateTotals(el.dataset.day, el.dataset.side);
       renderSummaryLive();
     }
+    updateInspectionAlerts();
   };
   tbody.onchange = function(e){
     var el=e.target;
@@ -1541,6 +1606,7 @@ function renderTable(m){
       if(cho && !cho.value) cho.value=el.value;
       renderSummaryLive();
     }
+    updateInspectionAlerts();
   };
   tbody.onkeydown = function(e){
     var el=e.target;
@@ -1595,6 +1661,7 @@ function renderTable(m){
 
   renderSummary(m,data);
   initNoteTips();
+  updateInspectionAlerts();
 }
 
 function initNoteTips(){
@@ -2345,7 +2412,8 @@ function collectScheduleRowFromDom(d){
     var btn = document.getElementById('sch_'+s.key+'_'+d+'_lv');
     row[s.key] = {
       worker:sel ? sel.value : '',
-      leave:btn ? btn.classList.contains('active') : false
+      leave:btn ? btn.classList.contains('active') : false,
+      trip:btn ? btn.classList.contains('trip') : false
     };
   });
   for(var j=1; j<=getHuumuCount(); j++){
@@ -2427,7 +2495,7 @@ function applySchLeaveSurveyToData(m, data, survey, prevSurvey){
       } else if(cell.leave && cell.worker && prevAutoLeave.indexOf(cell.worker) !== -1){
         row[s.key] = {worker:'', leave:false};
       } else {
-        row[s.key] = {worker:cell.worker || '', leave:false};
+        row[s.key] = {worker:cell.worker || '', leave:false, trip:!!cell.trip};
       }
     });
 
@@ -2716,10 +2784,11 @@ function schCellHtml(slot,d,val,hasLeave){
   var opts=SCH_INSPECTORS.map(function(n){
     return '<option value="'+escHtml(n)+'"'+(val.worker===n?' selected':'')+'>'+escHtml(n)+'</option>';
   }).join('');
-  var leaveActive=val.leave?' active':'';
-  var cellLeave=val.leave?' cell-leave':'';
+  var isTrip=!val.leave && !!val.trip;
+  var leaveActive=val.leave?' active':(isTrip?' trip':'');
+  var cellLeave=val.leave?' cell-leave':(isTrip?' cell-trip':'');
   var leaveBtn=hasLeave
-    ? '<button class="sch-leave-btn'+leaveActive+'" id="sch_'+slot+'_'+d+'_lv" title="연가" onclick="toggleLeave(\''+slot+'\','+d+')">연</button>'
+    ? '<button class="sch-leave-btn'+leaveActive+'" id="sch_'+slot+'_'+d+'_lv" title="한 번: 연가 / 두 번: 출장 / 세 번: 취소" onclick="toggleLeave(\''+slot+'\','+d+')">'+(isTrip?'출':'연')+'</button>'
     : '';
   return '<td class="'+cellLeave+'" id="sch_td_'+slot+'_'+d+'">'+
     '<div class="sch-cell">'+
@@ -2785,8 +2854,15 @@ function toggleLeave(slot,d){
   var btn=document.getElementById('sch_'+slot+'_'+d+'_lv');
   var td=document.getElementById('sch_td_'+slot+'_'+d);
   if(!btn||!td) return;
-  var active=btn.classList.toggle('active');
-  td.classList.toggle('cell-leave',active);
+  var wasLeave=btn.classList.contains('active');
+  var wasTrip=btn.classList.contains('trip');
+  var toLeave=!wasLeave && !wasTrip;
+  var toTrip=wasLeave;
+  btn.classList.toggle('active',toLeave);
+  btn.classList.toggle('trip',toTrip);
+  btn.textContent=toTrip?'출':'연';
+  td.classList.toggle('cell-leave',toLeave);
+  td.classList.toggle('cell-trip',toTrip);
   updateScheduleRowCheck(d);
   renderSchLeaveStats(schMonth, collectSchData(schMonth), SCH_LEAVE_SURVEY);
   applySchFocusHighlight();
@@ -2843,7 +2919,8 @@ function collectSchData(m){
       var btn=document.getElementById('sch_'+s.key+'_'+d+'_lv');
       data[d][s.key]={
         worker:sel?sel.value:'',
-        leave:btn?btn.classList.contains('active'):false
+        leave:btn?btn.classList.contains('active'):false,
+        trip:btn?btn.classList.contains('trip'):false
       };
     });
     for(var j=1;j<=n;j++){
@@ -2874,11 +2951,15 @@ async function fetchWWState(stateType){
 }
 
 async function upsertWWState(stateType, data){
-  await fetch(SB_URL+'/rest/v1/'+WW_TABLE, {
-    method:'POST',
-    headers: Object.assign({}, SB_HDR, {'Prefer':'resolution=merge-duplicates'}),
-    body: JSON.stringify({workspace_id:WW_WORKSPACE, state_type:stateType, data:data, updated_at:new Date().toISOString()})
-  });
+  var res = await fetch(
+    SB_URL+'/rest/v1/'+WW_TABLE+'?workspace_id=eq.'+WW_WORKSPACE+'&state_type=eq.'+stateType,
+    {
+      method:'PATCH',
+      headers: Object.assign({}, SB_HDR, {'Prefer':'return=minimal'}),
+      body: JSON.stringify({data:data, updated_at:new Date().toISOString()})
+    }
+  );
+  if(!res.ok){ var t=await res.text(); throw new Error('upsertWWState '+stateType+' '+res.status+': '+t); }
 }
 
 async function syncToWorkWidget(m, schData){
@@ -2942,6 +3023,7 @@ async function syncToWorkWidget(m, schData){
     });
     var offTypeId = findOrCreateWorkType('휴무', 7);
     var leaveTypeId = findOrCreateWorkType('연가', 2);
+    var tripTypeId = findOrCreateWorkType('출장', 5);
 
     /* ─── users 데이터 준비 ─── */
     var userProfiles = (usersData && usersData.userProfiles && typeof usersData.userProfiles==='object')
@@ -2975,6 +3057,13 @@ async function syncToWorkWidget(m, schData){
     }
 
     /* ─── 스케줄 변환 ─── */
+    var monthPrefix = SCH_YEAR+'-'+pad2(m)+'-';
+    Object.keys(userProfiles).forEach(function(k){
+      if(userProfiles[k].dispatchSiteId !== dispatchSiteId || !userSchedules[k]) return;
+      Object.keys(userSchedules[k]).forEach(function(ds){
+        if(ds.indexOf(monthPrefix) === 0) delete userSchedules[k][ds];
+      });
+    });
     var days = DAYS_IN[m] || 31;
     for(var d=1; d<=days; d++){
       var row = schData[d] || {};
@@ -2986,7 +3075,7 @@ async function syncToWorkWidget(m, schData){
         if(!cell.worker) return;
         var uKey = ensureUser(cell.worker);
         if(!uKey) return;
-        userSchedules[uKey][dateStr] = cell.leave ? leaveTypeId : slotTypeMap[s.key];
+        userSchedules[uKey][dateStr] = cell.leave ? leaveTypeId : cell.trip ? tripTypeId : slotTypeMap[s.key];
       });
 
       /* 휴무 슬롯 */
@@ -3133,6 +3222,9 @@ async function downloadScheduleExcel(){
       if(s.leave && sv.leave && sv.worker){
         cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFCE4B0'}};
         cell.font={italic:true,size:10,name:'맑은 고딕',color:{argb:'FF8A5A00'}};
+      } else if(s.leave && sv.trip && sv.worker){
+        cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFDBEAFE'}};
+        cell.font={bold:true,size:10,name:'맑은 고딕',color:{argb:'FF1D4ED8'}};
       } else {
         cell.fill=BG;
         cell.font={size:10,name:'맑은 고딕'};
@@ -3248,12 +3340,12 @@ function drawCalendarBlock(ws, m, data, slots, startRow){
     var bgArgb=(isWE||isHd)?'FFFFFDE7':'FFFFFFFF';
     var dateColor=(isWE||isHd)?'FFCC0000':'FF222222';
 
-    var hideLeaveOnCalendar = (m === 8);
     var activeSlots=[];
     slots.forEach(function(s){
       var sv=r[s.key]||{worker:''};
       if(!sv.worker) return;
-      if(hideLeaveOnCalendar && s.leave && sv.leave) return;
+      /* 연가로 표시된 근무는 달력 시트에 표시하지 않는다. */
+      if(s.leave && (sv.leave || sv.trip)) return;
       activeSlots.push({s:s,worker:sv.worker});
     });
 
@@ -3361,6 +3453,10 @@ function showPage(name){
   document.getElementById('nav-'+name).classList.add('active');
   if(name==='schedule'){
     renderSchedule(schMonth);
+  }
+  if(name==='dispatch'){
+    var df = document.getElementById('dispatchFrame');
+    if(!df.getAttribute('src')) df.src = 'dispatch_rotation.html';
   }
   if(name==='drone'){
     var f = document.getElementById('droneFrame');
@@ -3477,5 +3573,6 @@ loadHolidays(SCH_YEAR); /* API에서 당해연도 공휴일 로드 */
   renderSchedule(schMonth);
 })();
 </script>
+<script src="schedule-image.js?v=20261031-1"></script>
 </body>
 </html>
