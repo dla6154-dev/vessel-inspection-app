@@ -475,6 +475,7 @@ function render(){
   for(const h of upcoming){
     if(!nextBySlot[h.slot])nextBySlot[h.slot]=h;
     if(!nextByStaff[h.staffId])nextByStaff[h.staffId]=h;
+    if(!h.auto)continue;/* 배치예정지로 지정된 자리는 확정이므로 다른 사람의 후보에서 뺀다 */
     const sl=slotOf(sim,h.slot);const g=(sl?sl.pool:'general')+'|'+h.start;(groups[g]=groups[g]||new Set()).add(siteOfSlot(sim,h.slot).name);
   }
   const destOf=h=>{const sl=slotOf(sim,h.slot);const set=groups[(sl?sl.pool:'general')+'|'+h.start];
