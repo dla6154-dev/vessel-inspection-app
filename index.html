@@ -108,10 +108,15 @@ tr.row-b:hover td{background:#fce5f2}
 tr.row-incomplete td{background:var(--red-light)!important;border-bottom-color:#edbbb7}
 tr.row-incomplete td:first-child{box-shadow:inset 4px 0 0 var(--red)}
 tr.row-incomplete .note-in{background:#fff7f6;color:var(--red)}
+tr.row-report-missing td{background:var(--amber-light)!important;border-bottom-color:#e8c978}
+tr.row-report-missing td:first-child{box-shadow:inset 4px 0 0 var(--amber)}
+tr.row-report-missing .num-cell[data-isbog="1"]{background:#fffdf4;color:var(--amber);border-color:#e0c97a}
 
-.incomplete-alert{display:none;align-items:center;gap:5px;height:27px;padding:0 10px;border:1px solid #e5a8a2;border-radius:999px;background:var(--red-light);color:var(--red);font-family:var(--sans);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
-.incomplete-alert.show{display:inline-flex}
+.incomplete-alert,.report-missing-alert{display:none;align-items:center;gap:5px;height:27px;padding:0 10px;border:1px solid #e5a8a2;border-radius:999px;background:var(--red-light);color:var(--red);font-family:var(--sans);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
+.incomplete-alert.show,.report-missing-alert.show{display:inline-flex}
 .incomplete-alert:hover{background:#f9dfdc;border-color:var(--red)}
+.report-missing-alert{border-color:#e0c97a;background:var(--amber-light);color:var(--amber)}
+.report-missing-alert:hover{background:#faedcc;border-color:var(--amber)}
 
 .day-num{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text2)}
 
@@ -341,7 +346,7 @@ td.cell-trip .sch-worker-sel{color:#1d4ed8;font-weight:700;background:transparen
     <label class="btn btn-ghost" for="fileInput">&#8593; JSON 불러오기</label>
     <input type="file" id="fileInput" accept=".json" onchange="loadFromFile(event)">
     <button class="btn btn-ghost" onclick="exportJSON()">&#8595; JSON 내보내기</button>
-    <button class="btn btn-save" onclick="saveData()">&#128190; 저장</button>
+    <button class="btn btn-save" onclick="saveData()">&#128190; 전체 저장</button>
     <button class="btn btn-dl" onclick="downloadExcel()">&#128229; 엑셀 다운로드</button>
   </div>
 </nav>
@@ -504,6 +509,7 @@ td.cell-trip .sch-worker-sel{color:#1d4ed8;font-weight:700;background:transparen
     <span><span class="ldot dot-b"></span>근무자 B 행</span>
     <span style="margin-left:auto;display:flex;gap:16px;align-items:center">
       <button type="button" class="incomplete-alert" id="incompleteAlert" onclick="focusNextIncomplete()"></button>
+      <button type="button" class="report-missing-alert" id="reportMissingAlert" onclick="focusNextReportMissing()"></button>
       <span id="syncStatus" style="font-size:11px"></span>
       <span style="font-size:11px;color:var(--text3)" id="savedAt"></span>
     </span>
@@ -1453,20 +1459,30 @@ function collectData(m){
 
 async function saveData(){
   var data=collectData(curMonth);
-  var incompleteCount=updateInspectionAlerts();
+  var alerts=updateInspectionAlerts();
   localStorage.setItem(stKey(curMonth),JSON.stringify(data));
   var ts=new Date().toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   document.getElementById('savedAt').textContent='마지막 저장: '+ts;
   setSyncStatus('syncing');
   var now = new Date().toISOString();
-  var dataOk = await cloudUpsert(stKey(curMonth), data);
-  await cloudUpsert(centerPrefix()+'vis_config', buildVisConfigPayload());
+  // 출항전 점검횟수 + 근무표 동시 저장
+  var schData=collectSchData(schMonth);
+  saveSchLeaveSurvey(schMonth, SCH_LEAVE_SURVEY);
+  localStorage.setItem(schStKey(schMonth),JSON.stringify(schData));
+  var results=await Promise.all([
+    cloudUpsert(stKey(curMonth), data),
+    cloudUpsert(centerPrefix()+'vis_config', buildVisConfigPayload()),
+    cloudUpsert(schStKey(schMonth),schData),
+    cloudUpsert(schLeaveSurveyKey(schMonth),SCH_LEAVE_SURVEY),
+    syncToWorkWidget(schMonth, schData)
+  ]);
+  var dataOk=!!results[0];
   if(dataOk){
     setSyncStatus('ok', now);
-    showToast(incompleteCount ? '저장 및 동기화 완료 · 미확인 '+incompleteCount+'건' : '저장 및 동기화 완료');
+    showToast(alerts.incomplete||alerts.reportMissing ? '저장 및 동기화 완료 · '+alertSummaryText(alerts) : '저장 및 동기화 완료 (근무표 포함)');
   } else {
     setSyncStatus('error');
-    showToast(incompleteCount ? '저장 완료 · 미확인 '+incompleteCount+'건 (동기화 실패)' : '저장 완료 (동기화 실패 — 인터넷 확인)');
+    showToast(alerts.incomplete||alerts.reportMissing ? '저장 완료 · '+alertSummaryText(alerts)+' (동기화 실패)' : '저장 완료 (동기화 실패 — 인터넷 확인)');
   }
 }
 
@@ -1475,11 +1491,13 @@ function calcTotal(ships){
   return shipNames().reduce(function(s,k){return s+(parseInt(ships[k])||0);},0);
 }
 
-/* 선박 횟수 없이 담당자만 지정된 행은 사유 비고를 반드시 확인할 수 있게 표시한다. */
+/* 선박 횟수 누락 및 보고서유 누락을 각각 구분해 점검한다. */
 var incompleteAlertIndex=-1;
+var reportMissingAlertIndex=-1;
 function updateInspectionAlerts(){
   var rows=Array.prototype.slice.call(document.querySelectorAll('#tbody tr[data-day][data-side]'));
   var incompleteRows=[];
+  var reportMissingRows=[];
   rows.forEach(function(tr){
     var day=tr.dataset.day, side=tr.dataset.side;
     var total=shipNames().reduce(function(sum, ship){
@@ -1490,10 +1508,14 @@ function updateInspectionAlerts(){
     var chulcha=(document.getElementById(side+'_cho_'+day)||{}).value||'';
     var noteInput=document.getElementById(side+'_note_'+day);
     var note=noteInput ? noteInput.value.trim() : '';
+    var reportInput=document.getElementById(side+'_bog_'+day);
+    var reportMissing=total>0 && reportInput && reportInput.value.trim()==='';
     var incomplete=!total && !!(inspector.trim()||chulcha.trim()) && !note;
     tr.classList.toggle('row-incomplete',incomplete);
+    tr.classList.toggle('row-report-missing',!!reportMissing);
     if(noteInput) noteInput.placeholder=incomplete ? '횟수 미입력 사유를 적어주세요' : '비고...';
     if(incomplete) incompleteRows.push(tr);
+    if(reportMissing) reportMissingRows.push(tr);
   });
 
   var alert=document.getElementById('incompleteAlert');
@@ -1502,8 +1524,22 @@ function updateInspectionAlerts(){
     alert.textContent='⚠ 미확인 '+incompleteRows.length+'건';
     alert.title='선박 횟수 없이 담당자만 입력된 행입니다. 눌러서 확인하세요.';
   }
+  var reportAlert=document.getElementById('reportMissingAlert');
+  if(reportAlert){
+    reportAlert.classList.toggle('show',!!reportMissingRows.length);
+    reportAlert.textContent='⚠ 보고서유 미입력 '+reportMissingRows.length+'건';
+    reportAlert.title='점검횟수는 있지만 보고서유가 비어 있는 행입니다. 눌러서 확인하세요.';
+  }
   if(incompleteAlertIndex>=incompleteRows.length) incompleteAlertIndex=-1;
-  return incompleteRows.length;
+  if(reportMissingAlertIndex>=reportMissingRows.length) reportMissingAlertIndex=-1;
+  return {incomplete:incompleteRows.length,reportMissing:reportMissingRows.length};
+}
+
+function alertSummaryText(alerts){
+  var parts=[];
+  if(alerts.incomplete) parts.push('횟수 미확인 '+alerts.incomplete+'건');
+  if(alerts.reportMissing) parts.push('보고서유 미입력 '+alerts.reportMissing+'건');
+  return parts.join(' · ');
 }
 
 function focusNextIncomplete(){
@@ -1514,6 +1550,16 @@ function focusNextIncomplete(){
   row.scrollIntoView({behavior:'smooth',block:'center'});
   var note=row.querySelector('.note-in');
   if(note) setTimeout(function(){ note.focus(); },300);
+}
+
+function focusNextReportMissing(){
+  var rows=Array.prototype.slice.call(document.querySelectorAll('#tbody tr.row-report-missing'));
+  if(!rows.length) return;
+  reportMissingAlertIndex=(reportMissingAlertIndex+1)%rows.length;
+  var row=rows[reportMissingAlertIndex];
+  row.scrollIntoView({behavior:'smooth',block:'center'});
+  var report=row.querySelector('.num-cell[data-isbog="1"]');
+  if(report) setTimeout(function(){ report.focus(); report.select(); },300);
 }
 
 /* ── colgroup / thead ── */
