@@ -298,12 +298,17 @@ function addMonths(s,n){let[y,m,d]=s.split('-').map(Number);m+=n;y+=Math.floor((
 const isDate=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s);
 const maxD=(a,b)=>!a?b:!b?a:(a>b?a:b);
 const minD=(a,b)=>!a?b:!b?a:(a<b?a:b);
-/* a부터 b 전날까지의 년·월·일 (b는 미포함) */
-function ymd(a,b){let[y1,m1,d1]=a.split('-').map(Number),[y2,m2,d2]=b.split('-').map(Number);
-  let y=y2-y1,m=m2-m1,d=d2-d1;
-  if(d<0){m--;d+=new Date(Date.UTC(y2,m2-1,0)).getUTCDate();}
-  if(m<0){y--;m+=12;}
-  return{y,m,d};}
+/* a부터 b 전날까지의 년·월·일 (b는 미포함). 달력 기준(민법 방식):
+   k개월은 k달 뒤 같은 날짜 전날까지. 그 날짜가 없는 달(2월 30일, 4월 31일 등)은 그 달 말일까지.
+   윤년 2월 29일은 Date.UTC가 그대로 반영. */
+function ymd(a,b){const[y1,m1,d1]=a.split('-').map(Number),[y2,m2]=b.split('-').map(Number);
+  const E=k=>{const mi=m1-1+k,y=y1+Math.floor(mi/12),m=mi-Math.floor(mi/12)*12+1;
+    const last=new Date(Date.UTC(y,m,0)).getUTCDate();
+    return d1<=last?fmt(y,m,d1):addDays(fmt(y,m,last),1);};
+  let k=Math.max(0,(y2-y1)*12+(m2-m1));
+  while(k>0&&E(k)>b)k--;
+  while(E(k+1)<=b)k++;
+  return{y:Math.floor(k/12),m:k%12,d:dn(b)-dn(E(k))};}
 const p2=n=>String(n).padStart(2,'0');
 /* 시작일~기준일(포함): "205일(00년06월21일)" */
 function period(start,base){if(start>base)return'-';const r=ymd(start,addDays(base,1));
