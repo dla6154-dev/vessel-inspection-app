@@ -158,7 +158,8 @@ html.printing .top,html.printing #netNote,html.printing #manage,.printing .note-
 </style>
 
 <style id="rotationReportStyles">
-.report-paper{box-sizing:border-box;width:297mm;height:210mm;padding:8mm 11mm;background:#fff}
+.report-paper{box-sizing:border-box;width:297mm;height:210mm;padding:8mm 11mm;background:#fff;overflow:hidden}
+.report-paper>.rotation-report{display:flow-root;transform-origin:top left}
 .rotation-report,.rotation-report *{box-sizing:border-box}
 .rotation-report{color:#172b39;font:12px/1.25 "Malgun Gothic","Apple SD Gothic Neo",sans-serif;font-variant-numeric:tabular-nums}
 .rotation-report .report-heading,.rotation-report .report-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
@@ -628,6 +629,25 @@ function sizeReportPreview(){
   reportPaper.style.zoom=Math.min(1,(reportStage.clientWidth-24)/(297*96/25.4));
 }
 
+function fitReportOnPaper(report){
+  const width=report.getBoundingClientRect().width;
+  const height=194*96/25.4-2;
+  if(report.offsetHeight<=height)return;
+
+  // Use real layout widths and a visual transform so the SVG export fits identically.
+  // Reflow the columns as the width changes because wrapped notes determine the height.
+  let low=height/report.offsetHeight;
+  let high=1;
+  for(let i=0;i<9;i++){
+    const scale=(low+high)/2;
+    report.style.width=(width/scale)+'px';
+    if(report.offsetHeight*scale<=height)low=scale;
+    else high=scale;
+  }
+  report.style.width=(width/low)+'px';
+  report.style.transform='scale('+low+')';
+}
+
 document.getElementById('pdfBtn').addEventListener('click',()=>{
   if(!state)return;
   reportDate=BASE;
@@ -637,12 +657,7 @@ document.getElementById('pdfBtn').addEventListener('click',()=>{
   reportPaper.innerHTML=renderPrintReport(view,sim,reportDate,nextBySlot,nextByStaff);
   reportStatus.textContent='A4 가로 · 1페이지';
   reportDialog.showModal();
-  const report=reportPaper.firstElementChild;
-  const height=194*96/25.4;
-  if(report.offsetHeight>height){
-    report.style.zoom=(height-2)/report.offsetHeight;
-    report.style.width=(100/Number(report.style.zoom))+'%';
-  }
+  fitReportOnPaper(reportPaper.firstElementChild);
   sizeReportPreview();
 });
 window.addEventListener('resize',sizeReportPreview);
