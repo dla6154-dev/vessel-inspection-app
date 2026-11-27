@@ -138,6 +138,43 @@ button.btn.linkbtn:hover{border-color:var(--accent)}
 .slotchip{display:inline-flex;gap:4px;align-items:center;padding:2px 4px 2px 8px;border-radius:6px;background:var(--sunken);font-size:12px}
 .slotchip select{padding:2px 4px;font-size:12px}
 @media (prefers-reduced-motion:no-preference){.bar>i{transition:width .4s ease}}
+/* ---------- 인쇄(PDF) ---------- */
+@page{size:A4 landscape;margin:10mm 11mm}
+@media print{
+  html,body{background:#fff!important}
+  body{font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+html.printing body{background:#fff}
+html.printing .wrap{max-width:none;padding:0;gap:10px}
+html.printing header.top{border-bottom:2px solid var(--fg);padding-bottom:6px;align-items:flex-end}
+html.printing h1{font-size:20px}
+html.printing .basebox,html.printing #pdfBtn,html.printing #meta,html.printing #netNote,html.printing #manage,html.printing .note-icon{display:none!important}
+html.printing .print-meta{display:block!important;font-size:11px;color:var(--muted);text-align:right}
+html.printing #main>div{gap:10px!important}
+html.printing .panel{padding:8px 10px;gap:6px;border-radius:6px;break-inside:avoid;box-shadow:none}
+html.printing h2{font-size:13px}
+html.printing .sites{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+html.printing .site{padding:6px 8px;gap:4px;break-inside:avoid}
+html.printing table{font-size:10.5px}
+html.printing th,html.printing td{padding:3px 5px}
+html.printing th{font-size:9.5px}
+html.printing .tablebox{overflow:visible}
+html.printing td.note-cell{max-width:none;width:auto;white-space:normal;font-size:10px;color:var(--fg)}
+html.printing .grid2{grid-template-columns:minmax(0,1fr)!important}
+html.printing .grid2 .stack{gap:10px}
+html.printing .timeline{columns:2;column-gap:20px}
+html.printing .timeline li{break-inside:avoid;padding:3px 0}
+html.printing td.editable{cursor:default}
+.print-meta{display:none}
+html.printing .pgrid{display:flex;flex-direction:column;gap:8px}
+html.printing .pcols{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:8px;align-items:start}
+html.printing .pcols .stack{gap:8px}
+html.printing .timeline{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:18px;columns:auto}
+html.printing .timeline li{grid-template-columns:70px 52px minmax(0,1fr) auto;gap:6px}
+html.printing .timeline li>span:last-child{white-space:nowrap}
+html.printing .wrap{padding:0!important;margin:0}
+html.printing .site .slot-next{font-size:10px}
+
 </style>
 
 <div class="wrap">
@@ -148,7 +185,9 @@ button.btn.linkbtn:hover{border-color:var(--accent)}
     </div>
     <div class="meta">
       <label class="basebox" for="baseDate">기준일 <input type="date" id="baseDate"></label>
+      <button class="btn" type="button" id="pdfBtn" title="A4 가로 한 장으로 인쇄하거나 PDF로 저장합니다">PDF 저장</button>
       <span id="meta" class="meta"></span>
+      <div class="print-meta" id="printMeta"></div>
     </div>
   </header>
   <div id="netNote" class="note" hidden></div>
@@ -357,6 +396,23 @@ return{TITLES,POOLS,POOL_LONG,SITES0,SLOTS0,dn,addDays,addMonths,isDate,ymd,peri
 const M=window.RotModel;
 const {dn,addDays,addMonths,isDate,period,elapsed,uid,clone,siteOf,slotOf,siteOfSlot,slotLabel,personOf,nameOf}=M;
 const LS_KEY='dispatch-rotation-v2';
+/* PDF 저장(인쇄): A4 가로 한 장 배치로 바꿨다가 인쇄가 끝나면 되돌린다 */
+let PRINT=false,prevTheme=null,prevTitle=document.title;
+function enterPrint(){
+  if(PRINT||!state)return;PRINT=true;const r=document.documentElement;
+  prevTheme=r.getAttribute('data-theme');r.dataset.theme='light';r.classList.add('printing');
+  prevTitle=document.title;document.title='파견지순번_'+BASE;render();
+}
+function exitPrint(){
+  if(!PRINT)return;PRINT=false;const r=document.documentElement;
+  if(prevTheme===null)r.removeAttribute('data-theme');else r.dataset.theme=prevTheme;
+  r.classList.remove('printing');document.title=prevTitle;
+  const w=document.querySelector('.wrap');if(w){w.style.zoom='';w.style.width='';}
+  render();
+}
+window.addEventListener('beforeprint',enterPrint);
+window.addEventListener('afterprint',exitPrint);
+document.getElementById('pdfBtn').addEventListener('click',()=>{if(!state)return;enterPrint();setTimeout(()=>{window.print();setTimeout(exitPrint,500);},60);});
 const pad=n=>String(n).padStart(2,'0');
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
 const dot=s=>s?s:'';
@@ -468,6 +524,7 @@ function render(){
     return;
   }
   const D=BASE;
+  if(PRINT){const pm=document.getElementById('printMeta');if(pm)pm.textContent='기준일 '+D+' · 출력일 '+TODAY;}
   const v=viewAt(D);
   const sim=clone(v);M.advance(sim,addMonths(D,30));
   const upcoming=sim.history.filter(h=>h.start>D).sort((a,b)=>a.start<b.start?-1:a.start>b.start?1:0);
@@ -490,6 +547,7 @@ function render(){
   /* 비고: 칸에 바로 적고, 다른 곳을 누르거나 Enter를 치면 저장 */
   function noteCell(p,where){
     if(!p)return '<td class="note-cell"></td>';
+    if(PRINT)return '<td class="note-cell">'+esc(p.note)+'</td>';
     return '<td class="note-cell"><div class="note-wrap"><input class="noteinput" id="note-'+where+'-'+esc(p.id)+'" data-note="'+esc(p.id)+'" value="'+esc(p.note)+'" maxlength="60" aria-label="'+esc(p.name)+' 비고"'+dis+'><span class="note-icon" tabindex="0" aria-label="비고 전체 보기">i</span></div></td>';
   }
   function destCell(p,nx){
@@ -499,7 +557,7 @@ function render(){
       return '<td><span class="endedit"><select id="ed-dest" aria-label="'+esc(p.name)+' 배치예정지">'+opt('','자동 (순번대로)',cur?cur.slot:'')+opts+'</select> <button class="btn primary sm" data-act="saveDest" data-id="'+esc(p.id)+'">저장</button> <button class="btn sm" data-act="cancelDest">취소</button></span></td>';
     }
     const pinned=nx&&!nx.auto;
-    return '<td class="'+dblAttr('editDest',p.id,p.name+' 배치예정지')+'>'+(nx?esc(pinned?siteOfSlot(sim,nx.slot).name:destOf(nx)):'<span class="muted">-</span>')+(pinned?' <span class="tag senior">지정</span>':'')+'</td>';
+    return '<td class="'+dblAttr('editDest',p.id,p.name+' 배치예정지')+'>'+(nx?esc(pinned?siteOfSlot(sim,nx.slot).name:destOf(nx)):'<span class="muted">-</span>')+(pinned&&!PRINT?' <span class="tag senior">지정</span>':'')+'</td>';
   }
 
   /* site cards */
@@ -576,6 +634,10 @@ function render(){
   const upHtml='<section class="panel"><div class="panel-head"><h2>향후 교대 일정</h2><span class="muted small">지금 순번대로 진행할 때</span></div>'+
     (up?'<ul class="timeline">'+up+'</ul>':'<p class="muted">예정된 교대가 없습니다.</p>')+'</section>';
 
+  if(PRINT){
+    main.innerHTML='<div class="pgrid"><div class="sites">'+cards+'</div><div class="pcols"><div class="stack">'+tableA+centerTable('senior',M.POOL_LONG.senior)+'</div><div class="stack">'+centerTable('general',M.POOL_LONG.general)+'</div></div></div>';
+    manage.hidden=true;fitPage();return;
+  }
   main.innerHTML='<div style="display:flex;flex-direction:column;gap:20px"><div class="sites">'+cards+'</div>'+tableA+
     '<div class="grid2"><div class="stack">'+centerTable('senior',M.POOL_LONG.senior)+centerTable('general',M.POOL_LONG.general)+'</div>'+upHtml+'</div></div>';
   manage.hidden=false;
@@ -609,6 +671,16 @@ document.addEventListener('input',e=>{if(e.target.matches&&e.target.matches('inp
 window.addEventListener('scroll',hideNoteTip,true);
 window.addEventListener('resize',()=>{hideNoteTip();updateNoteIcons();});
 
+/* 인쇄: A4 가로 한 장(275×190mm)에 맞게 전체 크기를 줄인다 */
+function fitPage(){
+  const w=document.querySelector('.wrap');if(!w)return;
+  const PW=1039,PH=712;let z=1;
+  w.style.zoom='';
+  for(let i=0;i<6;i++){w.style.width=(PW/z)+'px';const n=Math.min(1.25,PH/w.scrollHeight);if(Math.abs(n-z)<0.003){z=Math.min(z,n);break;}z=n;}
+  w.style.width=(PW/z)+'px';
+  if(w.scrollHeight*z>PH)z=PH/w.scrollHeight;
+  w.style.width=(PW/z)+'px';w.style.zoom=z;document.documentElement.dataset.fit=z.toFixed(3);
+}
 function opt(val,label,sel){return '<option value="'+esc(val)+'"'+(val===sel?' selected':'')+'>'+esc(label)+'</option>';}
 function titleOpts(sel){return opt('','직책 미입력',sel)+M.TITLES.map(t=>opt(t,t,sel)).join('');}
 function poolOpts(sel){return opt('general','일반',sel)+opt('senior','책임',sel);}
