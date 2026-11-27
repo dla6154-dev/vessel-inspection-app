@@ -139,41 +139,32 @@ button.btn.linkbtn:hover{border-color:var(--accent)}
 .slotchip select{padding:2px 4px;font-size:12px}
 @media (prefers-reduced-motion:no-preference){.bar>i{transition:width .4s ease}}
 /* ---------- 인쇄(PDF) ---------- */
-@page{size:A4 landscape;margin:10mm 11mm}
+@page{size:A4 landscape;margin:8mm 11mm}
 @media print{
   html,body{background:#fff!important}
-  body{font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 html.printing body{background:#fff}
-html.printing .wrap{max-width:none;padding:0;gap:10px}
-html.printing header.top{border-bottom:2px solid var(--fg);padding-bottom:6px;align-items:flex-end}
-html.printing h1{font-size:20px}
-html.printing .basebox,html.printing #pdfBtn,html.printing #meta,html.printing #netNote,html.printing #manage,html.printing .note-icon{display:none!important}
-html.printing .print-meta{display:block!important;font-size:11px;color:var(--muted);text-align:right}
-html.printing #main>div{gap:10px!important}
-html.printing .panel{padding:8px 10px;gap:6px;border-radius:6px;break-inside:avoid;box-shadow:none}
-html.printing h2{font-size:13px}
-html.printing .sites{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
-html.printing .site{padding:6px 8px;gap:4px;break-inside:avoid}
-html.printing table{font-size:10.5px}
-html.printing th,html.printing td{padding:3px 5px}
-html.printing th{font-size:9.5px}
-html.printing .tablebox{overflow:visible}
-html.printing td.note-cell{max-width:none;width:auto;white-space:normal;font-size:10px;color:var(--fg)}
-html.printing .grid2{grid-template-columns:minmax(0,1fr)!important}
-html.printing .grid2 .stack{gap:10px}
-html.printing .timeline{columns:2;column-gap:20px}
-html.printing .timeline li{break-inside:avoid;padding:3px 0}
-html.printing td.editable{cursor:default}
-.print-meta{display:none}
-html.printing .pgrid{display:flex;flex-direction:column;gap:8px}
-html.printing .pcols{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:8px;align-items:start}
-html.printing .pcols .stack{gap:8px}
-html.printing .timeline{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:18px;columns:auto}
-html.printing .timeline li{grid-template-columns:70px 52px minmax(0,1fr) auto;gap:6px}
-html.printing .timeline li>span:last-child{white-space:nowrap}
-html.printing .wrap{padding:0!important;margin:0}
-html.printing .site .slot-next{font-size:10px}
+html.printing .wrap{max-width:none;padding:0!important;margin:0;gap:0}
+html.printing .top,html.printing #netNote,html.printing #manage,.printing .note-tip{display:none!important}
+.rotation-report{color:#172b39;font:12px/1.25 "Malgun Gothic","Apple SD Gothic Neo",sans-serif;font-variant-numeric:tabular-nums}
+.rotation-report .report-heading,.rotation-report .report-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.rotation-report .report-heading{margin:3px 0 8px}
+.rotation-report .report-office{color:#12594f;font-weight:700}
+.rotation-report h1{font-size:29px;line-height:1.2}
+.rotation-report h2{font-size:17px;line-height:1.25}
+.rotation-report .report-count,.rotation-report .report-footer{color:#526575;font-size:11px}
+.rotation-report .report-next{display:flex;align-items:baseline;gap:16px;background:#eaf4f1;border-radius:5px;padding:7px 10px;margin:0 0 8px}
+.rotation-report .report-next b{color:#12594f;flex:none}
+.rotation-report .report-section-head{margin:7px 0 4px}
+.rotation-report table{table-layout:fixed;font:inherit;border-bottom:1px solid #dbe3e7}
+.rotation-report th,.rotation-report td{padding:2px 8px;border:0;white-space:normal;overflow-wrap:anywhere}
+.rotation-report th{background:#19394b;color:#fff;font-size:11.5px}
+.rotation-report .report-data:nth-child(odd){background:#f5f8f9}
+.rotation-report .report-group th{background:#eaf4f1;color:#12594f}
+.rotation-report .report-data td:first-child{font-weight:700}
+.rotation-report .report-destination{font-weight:700;color:#12594f}
+.rotation-report .report-footer{display:flex;justify-content:space-between;gap:12px;margin:8px 0 0}
 
 </style>
 
@@ -187,7 +178,6 @@ html.printing .site .slot-next{font-size:10px}
       <label class="basebox" for="baseDate">기준일 <input type="date" id="baseDate"></label>
       <button class="btn" type="button" id="pdfBtn" title="A4 가로 한 장으로 인쇄하거나 PDF로 저장합니다">PDF 저장</button>
       <span id="meta" class="meta"></span>
-      <div class="print-meta" id="printMeta"></div>
     </div>
   </header>
   <div id="netNote" class="note" hidden></div>
@@ -511,6 +501,81 @@ function renderMeta(){
     (readOnly?'<span class="pill bad">보기 전용</span>':'');
 }
 
+function rankedCenterRows(view,pool,date){
+  const rankKey=view.rule==='total'?'total':'since';
+  let rank=0,previous=null;
+  return M.centerList(view,pool,date,true).map(({p,s},index)=>{
+    const excluded=p.active===false;
+    if(!excluded&&s[rankKey]!==previous){
+      rank=index+1;
+      previous=s[rankKey];
+    }
+    return {p,s,rank,excluded};
+  });
+}
+
+function renderPrintReport(view,simulation,date,nextBySlot,nextByStaff){
+  const printSlot=(state,id)=>slotLabel(state,id).replace(/ (\d+)$/,'$1');
+  const span=(value,css='')=>'<span'+(css?' class="'+css+'"':'')+'>'+esc(value)+'</span>';
+  const heading=(title,count)=>'<div class="report-section-head"><h2>'+title+
+    '</h2><span class="report-count">'+esc(count)+'</span></div>';
+  const row=(values,destinationIndex)=>'<tr class="report-data">'+values.map((value,index)=>
+    '<td'+(index===destinationIndex?' class="report-destination"':'')+'>'+esc(value)+'</td>').join('')+'</tr>';
+  const table=(columns,bodies)=>'<table><colgroup>'+columns.map(([,width])=>'<col style="width:'+width+'%">').join('')+
+    '</colgroup><thead><tr>'+columns.map(([label])=>'<th scope="col">'+label+'</th>').join('')+
+    '</tr></thead>'+bodies+'</table>';
+  const next=Object.values(nextBySlot);
+  const nextDate=next[0]?.start;
+  const nextNames=next.filter(entry=>entry.start===nextDate).map(entry=>
+    span(printSlot(simulation,entry.slot)+' '+nameOf(simulation,entry.staffId)));
+  const summary=nextDate
+    ? '<b>다음 교대 '+esc(nextDate)+' · '+nextNames.length+'자리</b><span>'+nextNames.join('　/　')+'</span>'
+    : '<b>다음 교대</b><span>예정된 교대가 없습니다.</span>';
+
+  let assigned=0;
+  const dispatchRows=view.sites.flatMap(site=>view.slots.filter(slot=>slot.site===site.key).map(slot=>{
+    const entry=M.lastStarted(view,slot.id,date);
+    const current=entry&&personOf(view,entry.staffId);
+    const replacement=nextBySlot[slot.id];
+    if(entry)assigned++;
+    const role=slot.pool==='senior'?' 책임':'';
+    return row([
+      printSlot(view,slot.id),entry?nameOf(view,entry.staffId)+role:'공석',
+      entry?.start||'-',entry?M.periodYMD(entry.start,date):'-',site.months+'개월',
+      replacement?.start||entry?.end||(entry?'해당없음':'-'),
+      replacement?nameOf(simulation,replacement.staffId)+role:'-',current?.note||''
+    ],6);
+  }));
+  const dispatchColumns=[['파견지·자리',10],['현재 파견자',14],['파견 배치일',12],['현재 근무기간',15],
+    ['기본 기간',8],['교대 예정일',13],['차기 대상자',13],['비고',15]];
+
+  let waiting=0;
+  const centerGroups=['senior','general'].map(pool=>{
+    const people=rankedCenterRows(view,pool,date);
+    const count=people.filter(person=>!person.excluded).length;
+    waiting+=count;
+    const rows=people.map(({p,s,rank,excluded})=>{
+      const destination=nextByStaff[p.id];
+      return row([excluded?'제외':rank,p.name,p.title||'-',s.base,M.periodYMD(s.base,date),
+        destination?.start||'-',destination?printSlot(simulation,destination.slot):'-',p.note],6);
+    }).join('');
+    return '<tbody><tr class="report-group"><th scope="rowgroup" colspan="8">'+
+      esc(M.POOL_LONG[pool])+' · '+count+'명</th></tr>'+
+      (rows||'<tr><td colspan="8">센터에서 대기 중인 인원이 없습니다.</td></tr>')+'</tbody>';
+  }).join('');
+  const centerColumns=[['순번',5],['성명',10],['직책',15],['센터 배치일',13],['센터 근무기간',14],
+    ['순환 예정일',13],['배치 예정지',12],['비고',18]];
+
+  return '<article class="rotation-report"><header class="report-heading"><div>'+
+    '<div class="report-office">운항관리센터</div><h1>파견지 순환배치 순번표</h1></div><b>기준일 '+esc(date)+'</b></header>'+
+    '<div class="report-next">'+summary+'</div>'+
+    '<section>'+heading('파견지별 현재 배치 및 교대 예정',view.sites.length+'개 파견지 · '+assigned+'명')+
+    table(dispatchColumns,'<tbody>'+dispatchRows.join('')+'</tbody>')+'</section>'+
+    '<section>'+heading('센터 대기 순번 및 차기 배치','센터 대기 '+waiting+'명')+
+    table(centerColumns,centerGroups)+'</section>'+
+    '<footer class="report-footer"><span>자리 번호는 앱의 향후 교대 일정 기준입니다.</span><span>1 / 1</span></footer></article>';
+}
+
 function render(){
   renderMeta();
   const nn=document.getElementById('netNote');nn.hidden=!netNote;nn.textContent=netNote;
@@ -524,7 +589,6 @@ function render(){
     return;
   }
   const D=BASE;
-  if(PRINT){const pm=document.getElementById('printMeta');if(pm)pm.textContent='기준일 '+D+' · 출력일 '+TODAY;}
   const v=viewAt(D);
   const sim=clone(v);M.advance(sim,addMonths(D,30));
   const upcoming=sim.history.filter(h=>h.start>D).sort((a,b)=>a.start<b.start?-1:a.start>b.start?1:0);
@@ -534,6 +598,12 @@ function render(){
     if(!nextByStaff[h.staffId])nextByStaff[h.staffId]=h;
     if(!h.auto)continue;/* 배치예정지로 지정된 자리는 확정이므로 다른 사람의 후보에서 뺀다 */
     const sl=slotOf(sim,h.slot);const g=(sl?sl.pool:'general')+'|'+h.start;(groups[g]=groups[g]||new Set()).add(siteOfSlot(sim,h.slot).name);
+  }
+  if(PRINT){
+    main.innerHTML=renderPrintReport(v,sim,D,nextBySlot,nextByStaff);
+    manage.hidden=true;
+    fitPage();
+    return;
   }
   const destOf=h=>{const sl=slotOf(sim,h.slot);const set=groups[(sl?sl.pool:'general')+'|'+h.start];
     const own=siteOfSlot(sim,h.slot).name;return set&&set.size>1?[own,...[...set].filter(x=>x!==own)].join(' or '):own;};
@@ -547,7 +617,6 @@ function render(){
   /* 비고: 칸에 바로 적고, 다른 곳을 누르거나 Enter를 치면 저장 */
   function noteCell(p,where){
     if(!p)return '<td class="note-cell"></td>';
-    if(PRINT)return '<td class="note-cell">'+esc(p.note)+'</td>';
     return '<td class="note-cell"><div class="note-wrap"><input class="noteinput" id="note-'+where+'-'+esc(p.id)+'" data-note="'+esc(p.id)+'" value="'+esc(p.note)+'" maxlength="60" aria-label="'+esc(p.name)+' 비고"'+dis+'><span class="note-icon" tabindex="0" aria-label="비고 전체 보기">i</span></div></td>';
   }
   function destCell(p,nx){
@@ -557,7 +626,7 @@ function render(){
       return '<td><span class="endedit"><select id="ed-dest" aria-label="'+esc(p.name)+' 배치예정지">'+opt('','자동 (순번대로)',cur?cur.slot:'')+opts+'</select> <button class="btn primary sm" data-act="saveDest" data-id="'+esc(p.id)+'">저장</button> <button class="btn sm" data-act="cancelDest">취소</button></span></td>';
     }
     const pinned=nx&&!nx.auto;
-    return '<td class="'+dblAttr('editDest',p.id,p.name+' 배치예정지')+'>'+(nx?esc(pinned?siteOfSlot(sim,nx.slot).name:destOf(nx)):'<span class="muted">-</span>')+(pinned&&!PRINT?' <span class="tag senior">지정</span>':'')+'</td>';
+    return '<td class="'+dblAttr('editDest',p.id,p.name+' 배치예정지')+'>'+(nx?esc(pinned?siteOfSlot(sim,nx.slot).name:destOf(nx)):'<span class="muted">-</span>')+(pinned?' <span class="tag senior">지정</span>':'')+'</td>';
   }
 
   /* site cards */
@@ -609,12 +678,9 @@ function render(){
 
   /* 센터 근무 현황 (그룹별) */
   function centerTable(pool,title){
-    const list=M.centerList(v,pool,D,true);
-    /* 공동 순번: 센터 근무기간(누적 기준이면 누적 근무일)이 같으면 같은 순번, 다음은 인원수만큼 건너뜀 (1, 1, 3) */
-    const rk=v.rule==='total'?'total':'since';let rank=0,prevVal=null;
-    const rows=list.map((x,i)=>{
-      const nx=nextByStaff[x.p.id],out=x.p.active===false;
-      if(!out&&x.s[rk]!==prevVal){rank=i+1;prevVal=x.s[rk];}
+    const list=rankedCenterRows(v,pool,D);
+    const rows=list.map(x=>{
+      const nx=nextByStaff[x.p.id],out=x.excluded,rank=x.rank;
       return '<tr class="'+(rank===1&&!out?'first':'')+(out?' dim':'')+'"><td class="c">'+(out?'<span class="small">제외</span>':'<span class="rank">'+rank+'</span>')+'</td>'+
         '<td>'+esc(x.p.title||'-')+'</td><td><b>'+esc(x.p.name)+'</b></td>'+
         (ui.editingCenter===x.p.id?
@@ -634,10 +700,6 @@ function render(){
   const upHtml='<section class="panel"><div class="panel-head"><h2>향후 교대 일정</h2><span class="muted small">지금 순번대로 진행할 때</span></div>'+
     (up?'<ul class="timeline">'+up+'</ul>':'<p class="muted">예정된 교대가 없습니다.</p>')+'</section>';
 
-  if(PRINT){
-    main.innerHTML='<div class="pgrid"><div class="sites">'+cards+'</div><div class="pcols"><div class="stack">'+tableA+centerTable('senior',M.POOL_LONG.senior)+'</div><div class="stack">'+centerTable('general',M.POOL_LONG.general)+'</div></div></div>';
-    manage.hidden=true;fitPage();return;
-  }
   main.innerHTML='<div style="display:flex;flex-direction:column;gap:20px"><div class="sites">'+cards+'</div>'+tableA+
     '<div class="grid2"><div class="stack">'+centerTable('senior',M.POOL_LONG.senior)+centerTable('general',M.POOL_LONG.general)+'</div>'+upHtml+'</div></div>';
   manage.hidden=false;
@@ -671,12 +733,12 @@ document.addEventListener('input',e=>{if(e.target.matches&&e.target.matches('inp
 window.addEventListener('scroll',hideNoteTip,true);
 window.addEventListener('resize',()=>{hideNoteTip();updateNoteIcons();});
 
-/* 인쇄: A4 가로 한 장(275×190mm)에 맞게 전체 크기를 줄인다 */
+/* 인쇄: A4 가로의 본문 영역(275×194mm)에 맞게 크기를 줄인다. */
 function fitPage(){
   const w=document.querySelector('.wrap');if(!w)return;
-  const PW=1039,PH=712;let z=1;
+  const PW=1039,PH=728;let z=1;
   w.style.zoom='';
-  for(let i=0;i<6;i++){w.style.width=(PW/z)+'px';const n=Math.min(1.25,PH/w.scrollHeight);if(Math.abs(n-z)<0.003){z=Math.min(z,n);break;}z=n;}
+  for(let i=0;i<6;i++){w.style.width=(PW/z)+'px';const n=Math.min(1,PH/w.scrollHeight);if(Math.abs(n-z)<0.003){z=Math.min(z,n);break;}z=n;}
   w.style.width=(PW/z)+'px';
   if(w.scrollHeight*z>PH)z=PH/w.scrollHeight;
   w.style.width=(PW/z)+'px';w.style.zoom=z;document.documentElement.dataset.fit=z.toFixed(3);
