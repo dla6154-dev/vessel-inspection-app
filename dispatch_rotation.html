@@ -585,8 +585,8 @@ function renderPrintReport(view,simulation,date,nextBySlot,nextByStaff){
       replacement?nameOf(simulation,replacement.staffId)+role:'-',current?.note||''
     ],6);
   }));
-  const dispatchColumns=[['파견지·자리',10],['현재 파견자',14],['파견 배치일',12],['현재 근무기간',15],
-    ['기본 기간',8],['교대 예정일',13],['차기 대상자',13],['비고',15]];
+  const dispatchColumns=[['파견지·자리',8],['현재 파견자',10],['파견 배치일',9],['현재 근무기간',12],
+    ['기본 기간',7],['교대 예정일',9],['차기 대상자',9],['비고',36]];
 
   let waiting=0;
   const centerGroups=['senior','general'].map(pool=>{
@@ -602,8 +602,8 @@ function renderPrintReport(view,simulation,date,nextBySlot,nextByStaff){
       esc(M.POOL_LONG[pool])+' · '+count+'명</th></tr>'+
       (rows||'<tr><td colspan="8">센터에서 대기 중인 인원이 없습니다.</td></tr>')+'</tbody>';
   }).join('');
-  const centerColumns=[['순번',5],['성명',10],['직책',15],['센터 배치일',13],['센터 근무기간',14],
-    ['순환 예정일',13],['배치 예정지',12],['비고',18]];
+  const centerColumns=[['순번',4],['성명',7],['직책',10],['센터 배치일',9],['센터 근무기간',12],
+    ['순환 예정일',9],['배치 예정지',8],['비고',41]];
 
   return '<article class="rotation-report"><header class="report-heading"><div>'+
     '<div class="report-office">운항관리센터</div><h1>파견지 순환배치 순번표</h1></div><b>기준일 '+esc(date)+'</b></header>'+
