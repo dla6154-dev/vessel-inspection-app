@@ -147,18 +147,31 @@ button.btn.linkbtn:hover{border-color:var(--accent)}
 html.printing body{background:#fff}
 html.printing .wrap{max-width:none;padding:0!important;margin:0;gap:0}
 html.printing .top,html.printing #netNote,html.printing #manage,.printing .note-tip{display:none!important}
+.report-dialog{border:1px solid var(--line);border-radius:12px;width:min(96vw,1200px);max-width:none;max-height:94vh;padding:0;background:var(--surface);color:var(--fg)}
+.report-dialog::backdrop{background:#0d1929a6}
+.report-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:11px 15px}
+.report-toolbar h2{margin:0}
+.report-stage{max-height:calc(94vh - 105px);overflow:auto;padding:12px;background:#e8edf0}
+.report-stage .report-paper{margin:auto;box-shadow:0 2px 10px #14273b30}
+.report-status{min-height:18px;margin:0;padding:4px 15px;font-size:12px;color:var(--muted)}
+@media print{.report-dialog{display:none!important}}
+</style>
+
+<style id="rotationReportStyles">
+.report-paper{box-sizing:border-box;width:297mm;height:210mm;padding:8mm 11mm;background:#fff}
+.rotation-report,.rotation-report *{box-sizing:border-box}
 .rotation-report{color:#172b39;font:12px/1.25 "Malgun Gothic","Apple SD Gothic Neo",sans-serif;font-variant-numeric:tabular-nums}
 .rotation-report .report-heading,.rotation-report .report-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .rotation-report .report-heading{margin:3px 0 8px}
 .rotation-report .report-office{color:#12594f;font-weight:700}
-.rotation-report h1{font-size:29px;line-height:1.2}
-.rotation-report h2{font-size:17px;line-height:1.25}
+.rotation-report h1{font-size:29px;line-height:1.2;margin:0}
+.rotation-report h2{font-size:17px;line-height:1.25;margin:0}
 .rotation-report .report-count,.rotation-report .report-footer{color:#526575;font-size:11px}
 .rotation-report .report-next{display:flex;align-items:baseline;gap:16px;background:#eaf4f1;border-radius:5px;padding:7px 10px;margin:0 0 8px}
 .rotation-report .report-next b{color:#12594f;flex:none}
 .rotation-report .report-section-head{margin:7px 0 4px}
-.rotation-report table{table-layout:fixed;font:inherit;border-bottom:1px solid #dbe3e7}
-.rotation-report th,.rotation-report td{padding:2px 8px;border:0;white-space:normal;overflow-wrap:anywhere}
+.rotation-report table{width:100%;border-collapse:collapse;table-layout:fixed;font:inherit;border-bottom:1px solid #dbe3e7}
+.rotation-report th,.rotation-report td{padding:2px 8px;border:0;text-align:left;vertical-align:middle;white-space:normal;overflow-wrap:anywhere}
 .rotation-report th{background:#19394b;color:#fff;font-size:11.5px}
 .rotation-report .report-data:nth-child(odd){background:#f5f8f9}
 .rotation-report .report-group th{background:#eaf4f1;color:#12594f}
@@ -176,7 +189,7 @@ html.printing .top,html.printing #netNote,html.printing #manage,.printing .note-
     </div>
     <div class="meta">
       <label class="basebox" for="baseDate">기준일 <input type="date" id="baseDate"></label>
-      <button class="btn" type="button" id="pdfBtn" title="A4 가로 한 장으로 인쇄하거나 PDF로 저장합니다">PDF 저장</button>
+      <button class="btn" type="button" id="pdfBtn" title="A4 가로 한 장을 미리 보고 PDF 파일로 저장합니다">PDF 저장</button>
       <span id="meta" class="meta"></span>
     </div>
   </header>
@@ -246,6 +259,20 @@ html.printing .top,html.printing #netNote,html.printing #manage,.printing .note-
     </div>
   </section>
 </div>
+
+<dialog class="report-dialog" id="reportDialog" aria-labelledby="reportDialogTitle">
+  <div class="report-toolbar">
+    <h2 id="reportDialogTitle">PDF 미리보기</h2>
+    <div class="actions">
+      <button type="button" class="btn primary" id="reportDownload">PDF 파일 저장</button>
+      <button type="button" class="btn" id="reportClose">닫기</button>
+    </div>
+  </div>
+  <div class="report-stage" id="reportStage">
+    <div class="report-paper" id="reportPaper"></div>
+  </div>
+  <p class="report-status" id="reportStatus" role="status"></p>
+</dialog>
 
 <script id="model">
 /* ---------- 순환 모델 (화면과 분리) ---------- */
@@ -402,7 +429,6 @@ function exitPrint(){
 }
 window.addEventListener('beforeprint',enterPrint);
 window.addEventListener('afterprint',exitPrint);
-document.getElementById('pdfBtn').addEventListener('click',()=>{if(!state)return;enterPrint();setTimeout(()=>{window.print();setTimeout(exitPrint,500);},60);});
 const pad=n=>String(n).padStart(2,'0');
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
 const dot=s=>s?s:'';
@@ -514,6 +540,18 @@ function rankedCenterRows(view,pool,date){
   });
 }
 
+function rotationSchedule(view,date){
+  const sim=clone(view);
+  M.advance(sim,addMonths(date,30));
+  const upcoming=sim.history.filter(h=>h.start>date).sort((a,b)=>a.start.localeCompare(b.start));
+  const nextBySlot=Object.create(null),nextByStaff=Object.create(null);
+  for(const entry of upcoming){
+    nextBySlot[entry.slot]??=entry;
+    nextByStaff[entry.staffId]??=entry;
+  }
+  return {sim,upcoming,nextBySlot,nextByStaff};
+}
+
 function renderPrintReport(view,simulation,date,nextBySlot,nextByStaff){
   const printSlot=(state,id)=>slotLabel(state,id).replace(/ (\d+)$/,'$1');
   const span=(value,css='')=>'<span'+(css?' class="'+css+'"':'')+'>'+esc(value)+'</span>';
@@ -576,6 +614,121 @@ function renderPrintReport(view,simulation,date,nextBySlot,nextByStaff){
     '<footer class="report-footer"><span>자리 번호는 앱의 향후 교대 일정 기준입니다.</span><span>1 / 1</span></footer></article>';
 }
 
+const reportDialog=document.getElementById('reportDialog');
+const reportStage=document.getElementById('reportStage');
+const reportPaper=document.getElementById('reportPaper');
+const reportButton=document.getElementById('reportDownload');
+const reportStatus=document.getElementById('reportStatus');
+let reportDate='';
+
+document.getElementById('reportClose').addEventListener('click',()=>reportDialog.close());
+
+function sizeReportPreview(){
+  if(!reportDialog.open)return;
+  reportPaper.style.zoom=Math.min(1,(reportStage.clientWidth-24)/(297*96/25.4));
+}
+
+document.getElementById('pdfBtn').addEventListener('click',()=>{
+  if(!state)return;
+  reportDate=BASE;
+  const view=viewAt(reportDate);
+  const {sim,nextBySlot,nextByStaff}=rotationSchedule(view,reportDate);
+  reportPaper.style.zoom='';
+  reportPaper.innerHTML=renderPrintReport(view,sim,reportDate,nextBySlot,nextByStaff);
+  reportStatus.textContent='A4 가로 · 1페이지';
+  reportDialog.showModal();
+  const report=reportPaper.firstElementChild;
+  const height=194*96/25.4;
+  if(report.offsetHeight>height){
+    report.style.zoom=(height-2)/report.offsetHeight;
+    report.style.width=(100/Number(report.style.zoom))+'%';
+  }
+  sizeReportPreview();
+});
+window.addEventListener('resize',sizeReportPreview);
+
+// A single A4 page containing the locally rendered preview image.
+function reportPdf(jpeg,width,height){
+  const pageWidth=(297*72/25.4).toFixed(3);
+  const pageHeight=(210*72/25.4).toFixed(3);
+  const content='q '+pageWidth+' 0 0 '+pageHeight+' 0 0 cm /PageImage Do Q\n';
+  const encode=new TextEncoder();
+  const parts=[];
+  const offsets=[0];
+  let length=0;
+  function append(data){
+    const bytes=typeof data==='string'?encode.encode(data):data;
+    parts.push(bytes);
+    length+=bytes.byteLength;
+  }
+  function object(number,...data){
+    offsets[number]=length;
+    append(number+' 0 obj\n');
+    for(const chunk of data)append(chunk);
+    append('\nendobj\n');
+  }
+  append('%PDF-1.4\n');
+  object(1,'<< /Type /Catalog /Pages 2 0 R >>');
+  object(2,'<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  object(3,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+pageWidth+' '+pageHeight+
+    '] /Resources << /XObject << /PageImage 5 0 R >> >> /Contents 4 0 R >>');
+  object(4,'<< /Length '+content.length+' >>\nstream\n'+content+'endstream');
+  object(5,'<< /Type /XObject /Subtype /Image /Width '+width+' /Height '+height+
+    ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+jpeg.byteLength+' >>\nstream\n',
+    jpeg,'\nendstream');
+  const xref=length;
+  append('xref\n0 6\n0000000000 65535 f \n');
+  for(const offset of offsets.slice(1))append(String(offset).padStart(10,'0')+' 00000 n \n');
+  append('trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF\n');
+  return new Blob(parts,{type:'application/pdf'});
+}
+
+async function exportReportPdf(){
+  const width=297*96/25.4,height=210*96/25.4;
+  const paper=reportPaper.cloneNode(true);
+  paper.removeAttribute('id');
+  paper.style.zoom='';
+  paper.prepend(document.getElementById('rotationReportStyles').cloneNode(true));
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.round(width*3.125);
+  canvas.height=Math.round(height*3.125);
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+canvas.width+'" height="'+canvas.height+
+    '" viewBox="0 0 '+width+' '+height+'"><foreignObject width="'+width+'" height="'+height+'">'+
+    new XMLSerializer().serializeToString(paper)+'</foreignObject></svg>';
+  const image=new Image();
+  image.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+  await image.decode();
+  const context=canvas.getContext('2d',{alpha:false});
+  context.fillStyle='#fff';
+  context.fillRect(0,0,canvas.width,canvas.height);
+  context.drawImage(image,0,0);
+  const jpeg=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.95));
+  if(!jpeg)throw new Error('PDF 페이지를 만들 수 없습니다.');
+  return reportPdf(new Uint8Array(await jpeg.arrayBuffer()),canvas.width,canvas.height);
+}
+
+reportButton.addEventListener('click',async()=>{
+  const fileName='파견지순번_'+reportDate+'.pdf';
+  reportButton.disabled=true;
+  reportStatus.textContent='PDF 파일을 만드는 중입니다.';
+  try{
+    const url=URL.createObjectURL(await exportReportPdf());
+    const link=document.createElement('a');
+    link.href=url;
+    link.download=fileName;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    reportStatus.textContent='PDF 다운로드를 요청했습니다. 브라우저 다운로드에서 확인할 수 있습니다.';
+  }catch(error){
+    reportStatus.textContent='PDF 파일을 만들지 못했습니다. 다시 시도해 주세요.';
+    console.error('파견지 순번 PDF 생성 실패',error);
+  }finally{
+    reportButton.disabled=false;
+  }
+});
+
 function render(){
   renderMeta();
   const nn=document.getElementById('netNote');nn.hidden=!netNote;nn.textContent=netNote;
@@ -590,20 +743,17 @@ function render(){
   }
   const D=BASE;
   const v=viewAt(D);
-  const sim=clone(v);M.advance(sim,addMonths(D,30));
-  const upcoming=sim.history.filter(h=>h.start>D).sort((a,b)=>a.start<b.start?-1:a.start>b.start?1:0);
-  const nextBySlot={},nextByStaff={},groups={};
-  for(const h of upcoming){
-    if(!nextBySlot[h.slot])nextBySlot[h.slot]=h;
-    if(!nextByStaff[h.staffId])nextByStaff[h.staffId]=h;
-    if(!h.auto)continue;/* 배치예정지로 지정된 자리는 확정이므로 다른 사람의 후보에서 뺀다 */
-    const sl=slotOf(sim,h.slot);const g=(sl?sl.pool:'general')+'|'+h.start;(groups[g]=groups[g]||new Set()).add(siteOfSlot(sim,h.slot).name);
-  }
+  const {sim,upcoming,nextBySlot,nextByStaff}=rotationSchedule(v,D);
   if(PRINT){
     main.innerHTML=renderPrintReport(v,sim,D,nextBySlot,nextByStaff);
     manage.hidden=true;
     fitPage();
     return;
+  }
+  const groups={};
+  for(const h of upcoming){
+    if(!h.auto)continue;/* 배치예정지로 지정된 자리는 확정이므로 다른 사람의 후보에서 뺀다 */
+    const sl=slotOf(sim,h.slot);const g=(sl?sl.pool:'general')+'|'+h.start;(groups[g]=groups[g]||new Set()).add(siteOfSlot(sim,h.slot).name);
   }
   const destOf=h=>{const sl=slotOf(sim,h.slot);const set=groups[(sl?sl.pool:'general')+'|'+h.start];
     const own=siteOfSlot(sim,h.slot).name;return set&&set.size>1?[own,...[...set].filter(x=>x!==own)].join(' or '):own;};
